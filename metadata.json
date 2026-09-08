@@ -1,0 +1,6 @@
+{
+  "name": "FinanceApp - Native iOS & Swift Playgrounds",
+  "description": "Production-ready native iOS personal finance management app in pure Swift & SwiftUI with SwiftData, Swift Charts, IQD currency, and Swift Playgrounds .swiftpm package.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

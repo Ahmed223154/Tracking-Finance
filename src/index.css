@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
+    --sar: env(safe-area-inset-right, 0px);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    background-color: #F2F2F7;
+    color: #1C1C1E;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+/* iOS Safe Area Utilities for Physical iPhone and iPad Display */
+.pt-safe-notch {
+  padding-top: max(env(safe-area-inset-top, 0px), 48px);
+}
+
+.pb-safe-home {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 24px);
+}
+
+.safe-content-container {
+  padding-top: max(env(safe-area-inset-top, 0px), 48px);
+  padding-bottom: calc(max(env(safe-area-inset-bottom, 0px), 24px) + 60px);
+}

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="115" fill="#4F46E5"/>
+  <g fill="none" stroke="#ffffff" stroke-width="28" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Wallet Card Shape -->
+    <rect x="96" y="144" width="320" height="224" rx="32" stroke-width="28"/>
+    <!-- Card Stripe -->
+    <path d="M96 216h320"/>
+    <!-- Wallet Catch -->
+    <path d="M304 288h80v48h-80a24 24 0 0 1 0-48z"/>
+    <circle cx="336" cy="312" r="8" fill="#ffffff"/>
+  </g>
+</svg>

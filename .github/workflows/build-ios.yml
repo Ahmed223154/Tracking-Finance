@@ -1,0 +1,86 @@
+name: Build iOS IPA for Sideloadly
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-ipa:
+    name: Build & Package iOS .ipa
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Node Dependencies
+        run: |
+          npm install
+
+      - name: Compile Frontend to dist/
+        run: |
+          npm run build
+
+      - name: Sync Web Assets to Native iOS Project
+        run: |
+          npm run sync:ios
+
+      - name: Verify Fresh Native Web Assets
+        run: |
+          echo "Checking synchronized files in ios/App/App/public:"
+          ls -la ios/App/App/public
+          ls -la ios/App/App/public/assets
+
+      - name: Select Xcode Version
+        run: |
+          sudo xcode-select -s /Applications/Xcode_15.4.app || true
+          xcodebuild -version
+
+      - name: Build Xcode Archive (.xcarchive)
+        run: |
+          cd ios/App
+          if [ -d "App.xcworkspace" ]; then
+            TARGET_FLAG="-workspace App.xcworkspace"
+          else
+            TARGET_FLAG="-project App.xcodeproj"
+          fi
+          echo "Using $TARGET_FLAG"
+
+          xcodebuild clean \
+            $TARGET_FLAG \
+            -scheme App \
+            -configuration Release
+
+          xcodebuild archive \
+            $TARGET_FLAG \
+            -scheme App \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Package Payload into Sideloadly-Ready .ipa
+        run: |
+          mkdir -p "$RUNNER_TEMP/Payload"
+          cp -r "$RUNNER_TEMP/App.xcarchive/Products/Applications/App.app" "$RUNNER_TEMP/Payload/"
+          cd "$RUNNER_TEMP"
+          zip -r -9 "FinanceApp.ipa" Payload
+          mv FinanceApp.ipa "$GITHUB_WORKSPACE/"
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FinanceApp-v2.1.0-IPA
+          path: FinanceApp.ipa
+          retention-days: 14

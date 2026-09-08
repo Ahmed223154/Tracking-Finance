@@ -1,0 +1,33 @@
+{
+  "id": "/?v=2.1.0",
+  "name": "FinanceApp - Native iOS & Swift Playgrounds",
+  "short_name": "FinanceApp",
+  "version": "2.1.0",
+  "description": "Production-ready native iOS personal finance management app in pure Swift & SwiftUI with SwiftData, Swift Charts, IQD currency, and Swift Playgrounds .swiftpm package.",
+  "start_url": "/?v=2.1.0",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F2F2F7",
+  "theme_color": "#4F46E5",
+  "icons": [
+    {
+      "src": "/pwa-192x192.png?v=2.1.0",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png?v=2.1.0",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png?v=2.1.0",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
