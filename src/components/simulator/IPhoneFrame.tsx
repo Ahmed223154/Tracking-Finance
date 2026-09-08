@@ -47,8 +47,8 @@ export const IPhoneFrame: React.FC<IPhoneFrameProps> = ({
         isRTL ? 'font-sans' : ''
       }`}
     >
-      {/* Top Notch & Sensor Bar (Visible on desktop simulator; native status bar used on actual iPhone) */}
-      <div className="hidden sm:flex absolute top-0 right-0 left-0 z-30 h-11 items-center justify-between px-7 pt-1 text-[#1C1C1E] dark:text-white select-none" dir="ltr">
+      {/* Top Notch & Sensor Bar (Visible on desktop simulator with frosted glass so scrolled cards never clash with clock/icons) */}
+      <div className="hidden sm:flex absolute top-0 right-0 left-0 z-30 h-11 items-center justify-between px-7 pt-1 text-[#1C1C1E] dark:text-white select-none bg-[#F2F2F7]/85 dark:bg-[#1C1C1E]/85 backdrop-blur-md border-b border-black/[0.04] dark:border-white/[0.04]" dir="ltr">
         {/* Clock */}
         <span className="font-semibold text-xs tracking-tight">{currentTime}</span>
 

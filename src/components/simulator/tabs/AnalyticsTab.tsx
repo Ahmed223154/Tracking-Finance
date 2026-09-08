@@ -126,8 +126,10 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ transactions }) => {
   ];
 
   const maxCompareAmount = Math.max(periodIncome, periodExpenses, 1);
-  const incomeBarHeight = Math.round((periodIncome / maxCompareAmount) * 120);
-  const expenseBarHeight = Math.round((periodExpenses / maxCompareAmount) * 120);
+  // Max bar height capped at 72px so value labels and columns never touch the card header
+  const MAX_BAR_HEIGHT = 72;
+  const incomeBarHeight = Math.round((periodIncome / maxCompareAmount) * MAX_BAR_HEIGHT);
+  const expenseBarHeight = Math.round((periodExpenses / maxCompareAmount) * MAX_BAR_HEIGHT);
 
   return (
     <div id="analytics-tab-view" className="space-y-4 px-4 pt-2 pb-24 text-[#1C1C1E] dark:text-[#F2F2F7]">
@@ -200,33 +202,41 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ transactions }) => {
       {/* Visual Chart 1: Income vs Expenses Bar Chart */}
       <div className="rounded-[24px] border border-[#E5E5EA] bg-white p-5 shadow-sm dark:border-[#3A3A3C] dark:bg-[#2C2C2E]">
         <div className="flex items-center justify-between">
-          <h3 className="font-bold text-xs uppercase tracking-wider text-[#8E8E93]">{t.incomeVsExpenses} (BarMark)</h3>
-          <span className="text-[10px] text-[#8E8E93]">Native Swift Charts</span>
+          <div>
+            <h3 className="font-bold text-xs uppercase tracking-wider text-[#8E8E93]">{t.incomeVsExpenses}</h3>
+            <p className="text-[11px] text-[#8E8E93]">
+              {language === 'ar' ? 'مقارنة إجمالية للفترة الحالية' : 'Total comparison for current period'}
+            </p>
+          </div>
+          <span className="rounded-full bg-[#F2F2F7] px-2.5 py-0.5 text-[10px] font-semibold text-[#8E8E93] dark:bg-[#38383A]">
+            {language === 'ar' ? 'رسم بياني' : 'Bar Chart'}
+          </span>
         </div>
 
-        <div className="mt-4 flex h-36 items-end justify-center gap-12 border-b border-[#F2F2F7] pb-2 dark:border-[#38383A]">
+        {/* Dedicated chart area with fixed headroom preventing any title overlap */}
+        <div className="mt-6 flex h-40 items-end justify-center gap-12 sm:gap-16 border-b border-[#F2F2F7] pb-2 dark:border-[#38383A]">
           {/* Income bar */}
-          <div className="flex flex-col items-center">
-            <span className="mb-1 font-bold text-[10px] text-[#34C759]">
+          <div className="flex flex-col items-center justify-end">
+            <span className="mb-2 font-bold text-[11px] text-[#34C759] tracking-tight whitespace-nowrap">
               {formatCurrency(periodIncome)}
             </span>
             <div
               className="w-14 rounded-t-xl bg-[#34C759] shadow-sm transition-all duration-500"
-              style={{ height: `${Math.max(12, incomeBarHeight)}px` }}
+              style={{ height: `${Math.max(10, incomeBarHeight)}px` }}
             />
-            <span className="mt-2 text-xs font-semibold text-[#1C1C1E] dark:text-white">{t.income}</span>
+            <span className="mt-2.5 text-xs font-semibold text-[#1C1C1E] dark:text-white">{t.income}</span>
           </div>
 
           {/* Expenses bar */}
-          <div className="flex flex-col items-center">
-            <span className="mb-1 font-bold text-[10px] text-[#FF3B30]">
+          <div className="flex flex-col items-center justify-end">
+            <span className="mb-2 font-bold text-[11px] text-[#FF3B30] tracking-tight whitespace-nowrap">
               {formatCurrency(periodExpenses)}
             </span>
             <div
               className="w-14 rounded-t-xl bg-[#FF3B30] shadow-sm transition-all duration-500"
-              style={{ height: `${Math.max(12, expenseBarHeight)}px` }}
+              style={{ height: `${Math.max(10, expenseBarHeight)}px` }}
             />
-            <span className="mt-2 text-xs font-semibold text-[#1C1C1E] dark:text-white">{t.expenses}</span>
+            <span className="mt-2.5 text-xs font-semibold text-[#1C1C1E] dark:text-white">{t.expenses}</span>
           </div>
         </div>
       </div>
@@ -269,9 +279,14 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ transactions }) => {
       {/* Visual Chart 3: Net Savings Trend Line Chart */}
       <div className="rounded-[24px] border border-[#E5E5EA] bg-white p-5 shadow-sm dark:border-[#3A3A3C] dark:bg-[#2C2C2E]">
         <div className="flex items-center justify-between">
-          <h3 className="font-bold text-xs uppercase tracking-wider text-[#8E8E93]">{t.monthlyTrend} (LineMark)</h3>
-          <span className="text-[11px] text-[#8E8E93]">
-            {language === 'ar' ? 'الأشهر السابقة' : 'Past Months'}
+          <div>
+            <h3 className="font-bold text-xs uppercase tracking-wider text-[#8E8E93]">{t.monthlyTrend}</h3>
+            <p className="text-[11px] text-[#8E8E93]">
+              {language === 'ar' ? 'الأشهر السابقة' : 'Past Months History'}
+            </p>
+          </div>
+          <span className="rounded-full bg-[#F2F2F7] px-2.5 py-0.5 text-[10px] font-semibold text-[#8E8E93] dark:bg-[#38383A]">
+            {language === 'ar' ? 'صافي التوفير' : 'Net Savings'}
           </span>
         </div>
 
@@ -280,21 +295,24 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ transactions }) => {
             {language === 'ar' ? 'يتطلب وجود معاملات سابقة لعرض المنحنى.' : 'Need more transaction history.'}
           </div>
         ) : (
-          <div className="mt-3">
-            <div className="flex h-28 items-end justify-between gap-2 border-b border-[#F2F2F7] px-2 pb-1 dark:border-[#38383A]">
+          <div className="mt-5">
+            <div className="flex h-32 items-end justify-between gap-2 border-b border-[#F2F2F7] px-2 pb-1 dark:border-[#38383A]">
               {trendPoints.map((pt, i) => {
                 const maxVal = Math.max(...trendPoints.map(p => Math.abs(p.net)), 1);
-                const heightPercent = Math.min(100, Math.max(15, Math.round((Math.abs(pt.net) / maxVal) * 90)));
+                const heightPercent = Math.min(80, Math.max(15, Math.round((Math.abs(pt.net) / maxVal) * 70)));
                 const isPositive = pt.net >= 0;
 
                 return (
-                  <div key={i} className="flex flex-1 flex-col items-center">
+                  <div key={i} className="flex flex-1 flex-col items-center justify-end h-full">
+                    <span className="mb-1 font-bold text-[9px] text-[#8E8E93] truncate max-w-[48px]">
+                      {Math.abs(pt.net) >= 1000000 ? `${(pt.net / 1000000).toFixed(1)}M` : `${Math.round(pt.net / 1000)}k`}
+                    </span>
                     <div
-                      className={`w-3 rounded-full transition-all duration-500 ${isPositive ? 'bg-[#007AFF]' : 'bg-[#FF3B30]'}`}
+                      className={`w-3.5 rounded-full transition-all duration-500 ${isPositive ? 'bg-[#007AFF]' : 'bg-[#FF3B30]'}`}
                       style={{ height: `${heightPercent}%` }}
                       title={`${pt.label}: ${formatCurrency(pt.net)}`}
                     />
-                    <span className="mt-1 text-[10px] font-medium text-[#8E8E93]">
+                    <span className="mt-1.5 text-[10px] font-medium text-[#8E8E93]">
                       {pt.label}
                     </span>
                   </div>
