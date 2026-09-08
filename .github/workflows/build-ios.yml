@@ -32,8 +32,14 @@ jobs:
 
       - name: Build Xcode Archive (.xcarchive)
         run: |
+          if [ -d "ios/App/App.xcworkspace" ]; then
+            BUILD_TARGET="-workspace ios/App/App.xcworkspace"
+          else
+            BUILD_TARGET="-project ios/App/App.xcodeproj"
+          fi
+
           xcodebuild archive \
-            -workspace ios/App/App.xcworkspace \
+            $BUILD_TARGET \
             -scheme App \
             -configuration Release \
             -archivePath build/App.xcarchive \
