@@ -1,86 +1,50 @@
-name: Build iOS IPA for Sideloadly
+name: Build iOS IPA
 
 on:
   push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
-  build-ipa:
-    name: Build & Package iOS .ipa
+  build:
     runs-on: macos-14
 
     steps:
-      - name: Checkout Repository
+      - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-
-      - name: Install Node Dependencies
+      - name: Compile Swift to iOS Binary
         run: |
-          npm install
+          SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
+          SWIFT_FILES=$(find . -name "*.swift" -not -path "*/.*")
+          
+          echo "Compiling files:"
+          echo "$SWIFT_FILES"
+          
+          xcrun swiftc \
+            -target arm64-apple-ios17.0 \
+            -sdk "$SDK_PATH" \
+            -parse-as-library \
+            $SWIFT_FILES \
+            -o FinanceApp
 
-      - name: Compile Frontend to dist/
+      - name: Package into IPA with App Icon
         run: |
-          npm run build
-
-      - name: Sync Web Assets to Native iOS Project
-        run: |
-          npm run sync:ios
-
-      - name: Verify Fresh Native Web Assets
-        run: |
-          echo "Checking synchronized files in ios/App/App/public:"
-          ls -la ios/App/App/public
-          ls -la ios/App/App/public/assets
-
-      - name: Select Xcode Version
-        run: |
-          sudo xcode-select -s /Applications/Xcode_15.4.app || true
-          xcodebuild -version
-
-      - name: Build Xcode Archive (.xcarchive)
-        run: |
-          cd ios/App
-          if [ -d "App.xcworkspace" ]; then
-            TARGET_FLAG="-workspace App.xcworkspace"
-          else
-            TARGET_FLAG="-project App.xcodeproj"
+          mkdir -p Payload/FinanceApp.app
+          mv FinanceApp Payload/FinanceApp.app/
+          cp Info.plist Payload/FinanceApp.app/
+          
+          # Generate iOS app icons if AppIcon.png exists
+          if [ -f "AppIcon.png" ]; then
+            sips -z 120 120 AppIcon.png --out Payload/FinanceApp.app/AppIcon60x60@2x.png
+            sips -z 180 180 AppIcon.png --out Payload/FinanceApp.app/AppIcon60x60@3x.png
           fi
-          echo "Using $TARGET_FLAG"
-
-          xcodebuild clean \
-            $TARGET_FLAG \
-            -scheme App \
-            -configuration Release
-
-          xcodebuild archive \
-            $TARGET_FLAG \
-            -scheme App \
-            -configuration Release \
-            -destination "generic/platform=iOS" \
-            -archivePath "$RUNNER_TEMP/App.xcarchive" \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
-
-      - name: Package Payload into Sideloadly-Ready .ipa
-        run: |
-          mkdir -p "$RUNNER_TEMP/Payload"
-          cp -r "$RUNNER_TEMP/App.xcarchive/Products/Applications/App.app" "$RUNNER_TEMP/Payload/"
-          cd "$RUNNER_TEMP"
-          zip -r -9 "FinanceApp.ipa" Payload
-          mv FinanceApp.ipa "$GITHUB_WORKSPACE/"
+          
+          zip -r FinanceApp.ipa Payload
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: FinanceApp-v2.1.0-IPA
+          name: FinanceApp-IPA
           path: FinanceApp.ipa
-          retention-days: 14
+          retention-days: 5
