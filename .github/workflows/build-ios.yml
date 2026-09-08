@@ -1,4 +1,4 @@
-name: Build iOS IPA
+name: Build & Package iOS .ipa
 
 on:
   push:
@@ -10,36 +10,42 @@ jobs:
     runs-on: macos-14
 
     steps:
-      - name: Check out repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Compile Swift to iOS Binary
-        run: |
-          SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
-          SWIFT_FILES=$(find . -name "*.swift" -not -path "*/.*")
-          
-          echo "Compiling files:"
-          echo "$SWIFT_FILES"
-          
-          xcrun swiftc \
-            -target arm64-apple-ios17.0 \
-            -sdk "$SDK_PATH" \
-            -parse-as-library \
-            $SWIFT_FILES \
-            -o FinanceApp
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
-      - name: Package into IPA with App Icon
+      - name: Install Node Dependencies
+        run: npm install
+
+      - name: Compile Frontend to dist/
+        run: npm run build
+
+      - name: Sync Web Assets to Native iOS Project
+        run: npx cap sync ios
+
+      - name: Select Xcode Version
+        run: sudo xcode-select -switch /Applications/Xcode_15.4.app
+
+      - name: Build Xcode Archive (.xcarchive)
         run: |
-          mkdir -p Payload/FinanceApp.app
-          mv FinanceApp Payload/FinanceApp.app/
-          cp Info.plist Payload/FinanceApp.app/
-          
-          # Generate iOS app icons if AppIcon.png exists
-          if [ -f "AppIcon.png" ]; then
-            sips -z 120 120 AppIcon.png --out Payload/FinanceApp.app/AppIcon60x60@2x.png
-            sips -z 180 180 AppIcon.png --out Payload/FinanceApp.app/AppIcon60x60@3x.png
-          fi
-          
+          xcodebuild archive \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -archivePath build/App.xcarchive \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+
+      - name: Package Payload into Sideloadly-Ready .ipa
+        run: |
+          mkdir -p Payload
+          cp -r build/App.xcarchive/Products/Applications/App.app Payload/
           zip -r FinanceApp.ipa Payload
 
       - name: Upload IPA Artifact
