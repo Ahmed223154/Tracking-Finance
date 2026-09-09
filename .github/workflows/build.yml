@@ -31,19 +31,6 @@ jobs:
       - name: Sync iOS Project
         run: npx cap sync ios
 
-      - name: CocoaPods Install
-        working-directory: ios/App
-        run: |
-          pod install --repo-update
-          # Disable code signing on all pod targets
-          sed -i '' -e 's/EXPANDED_CODE_SIGN_IDENTITY = ""/EXPANDED_CODE_SIGN_IDENTITY = ""\nCODE_SIGNING_ALLOWED = "NO"/g' Pods/Pods.xcodeproj/project.pbxproj || true
-
-      - name: Patch CocoaPods Framework Signing Script
-        working-directory: ios/App
-        run: |
-          # Neutralize the code signing function inside CocoaPods embedding script
-          find Pods -name "*-frameworks.sh" -exec sed -i '' 's/code_sign_if_enabled/echo "Skipping codesign for: "/g' {} +
-
       - name: Select Xcode Version
         run: |
           if [ -d "/Applications/Xcode_15.4.app" ]; then
@@ -51,27 +38,14 @@ jobs:
           fi
           xcodebuild -version
 
-      - name: Build CocoaPods Dependencies & App Bundle
+      - name: Build Xcode App Bundle (.app)
         run: |
-          # Build CocoaPods framework targets first
-          xcodebuild build \
-            -workspace ios/App/App.xcworkspace \
-            -scheme Pods-App \
-            -configuration Release \
-            -destination 'generic/platform=iOS' \
-            -derivedDataPath derived_data \
-            ONLY_ACTIVE_ARCH=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO
-
-          # Build the main App target
           xcodebuild build \
             -workspace ios/App/App.xcworkspace \
             -scheme App \
             -configuration Release \
             -destination 'generic/platform=iOS' \
             -derivedDataPath derived_data \
-            ONLY_ACTIVE_ARCH=NO \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
