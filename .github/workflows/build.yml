@@ -51,14 +51,27 @@ jobs:
           fi
           xcodebuild -version
 
-      - name: Build Xcode App Bundle (.app)
+      - name: Build CocoaPods Dependencies & App Bundle
         run: |
+          # Build CocoaPods framework targets first
+          xcodebuild build \
+            -workspace ios/App/App.xcworkspace \
+            -scheme Pods-App \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath derived_data \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+
+          # Build the main App target
           xcodebuild build \
             -workspace ios/App/App.xcworkspace \
             -scheme App \
             -configuration Release \
             -destination 'generic/platform=iOS' \
             -derivedDataPath derived_data \
+            ONLY_ACTIVE_ARCH=NO \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
