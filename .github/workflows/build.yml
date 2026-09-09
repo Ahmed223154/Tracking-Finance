@@ -31,16 +31,18 @@ jobs:
       - name: Sync iOS Project
         run: npx cap sync ios
 
-      - name: CocoaPods Install & Disable Pod Signing
+      - name: CocoaPods Install
         working-directory: ios/App
         run: |
           pod install --repo-update
           # Disable code signing on all pod targets
           sed -i '' -e 's/EXPANDED_CODE_SIGN_IDENTITY = ""/EXPANDED_CODE_SIGN_IDENTITY = ""\nCODE_SIGNING_ALLOWED = "NO"/g' Pods/Pods.xcodeproj/project.pbxproj || true
-          # Neutralize framework codesign invocations in CocoaPods embedding script
-          if [ -f "Pods/Target Support Files/Pods-App/Pods-App-frameworks.sh" ]; then
-            sed -i '' -e 's/code_sign "${source}"/# code_sign "${source}"/g' "Pods/Target Support Files/Pods-App/Pods-App-frameworks.sh" || true
-          fi
+
+      - name: Patch CocoaPods Framework Signing Script
+        working-directory: ios/App
+        run: |
+          # Neutralize the code signing function inside CocoaPods embedding script
+          find Pods -name "*-frameworks.sh" -exec sed -i '' 's/code_sign_if_enabled/echo "Skipping codesign for: "/g' {} +
 
       - name: Select Xcode Version
         run: |
@@ -57,12 +59,11 @@ jobs:
             -configuration Release \
             -destination 'generic/platform=iOS' \
             -archivePath build/App.xcarchive \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            EXPANDED_CODE_SIGN_IDENTITY="" \
-            CODE_SIGN_ENTITLEMENTS="" \
-            CODE_SIGNING_INJECT_BASE_ENTITLEMENTS=NO
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_INJECT_BASE_ENTITLEMENTS=NO \
+            OTHER_CODE_SIGN_FLAGS="--keychain /dev/null"
 
       - name: Package Payload into Sideloadly-Ready .ipa
         run: |
