@@ -45,6 +45,7 @@
     "vite": "^6.2.3"
   },
   "optionalDependencies": {
+    "lightningcss-darwin-arm64": "^1.24.0",
     "@rollup/rollup-darwin-arm64": "^4.9.0",
     "@rollup/rollup-darwin-x64": "^4.9.0"
   }
