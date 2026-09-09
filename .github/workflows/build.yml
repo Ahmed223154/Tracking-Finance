@@ -19,12 +19,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
 
-      - name: Install Dependencies
+      - name: Clean and Install Dependencies (Native Darwin)
         run: |
-          npm ci --os=darwin --cpu=arm64 || npm install --os=darwin --cpu=arm64
-          npm rebuild lightningcss @rollup/rollup-darwin-arm64 || true
+          rm -rf node_modules package-lock.json
+          npm install --force
 
       - name: Build Web App
         run: npm run build
