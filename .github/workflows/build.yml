@@ -31,9 +31,16 @@ jobs:
       - name: Sync iOS Project
         run: npx cap sync ios
 
-      - name: CocoaPods Install
+      - name: CocoaPods Install & Disable Pod Signing
         working-directory: ios/App
-        run: pod install --repo-update
+        run: |
+          pod install --repo-update
+          # Disable code signing on all pod targets
+          sed -i '' -e 's/EXPANDED_CODE_SIGN_IDENTITY = ""/EXPANDED_CODE_SIGN_IDENTITY = ""\nCODE_SIGNING_ALLOWED = "NO"/g' Pods/Pods.xcodeproj/project.pbxproj || true
+          # Neutralize framework codesign invocations in CocoaPods embedding script
+          if [ -f "Pods/Target Support Files/Pods-App/Pods-App-frameworks.sh" ]; then
+            sed -i '' -e 's/code_sign "${source}"/# code_sign "${source}"/g' "Pods/Target Support Files/Pods-App/Pods-App-frameworks.sh" || true
+          fi
 
       - name: Select Xcode Version
         run: |
@@ -52,17 +59,20 @@ jobs:
             -archivePath build/App.xcarchive \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY=""
+            CODE_SIGN_IDENTITY="" \
+            EXPANDED_CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            CODE_SIGNING_INJECT_BASE_ENTITLEMENTS=NO
 
       - name: Package Payload into Sideloadly-Ready .ipa
         run: |
           mkdir -p Payload
           cp -r build/App.xcarchive/Products/Applications/App.app Payload/
-          zip -r FinanceApp.ipa Payload
+          zip -r App.ipa Payload
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: FinanceApp-IPA
-          path: FinanceApp.ipa
+          name: App-IPA
+          path: App.ipa
           retention-days: 5
