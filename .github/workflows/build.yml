@@ -51,10 +51,41 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             EXPANDED_CODE_SIGN_IDENTITY=""
 
+      - name: Compile and Embed Native WidgetKit Extension (.appex)
+        run: |
+          APP_BUNDLE="derived_data/Build/Products/Release-iphoneos/App.app"
+          PLUGINS_DIR="$APP_BUNDLE/PlugIns/FinanceWidget.appex"
+          mkdir -p "$PLUGINS_DIR"
+
+          # 1. Copy Extension Info.plist
+          cp ios/App/FinanceWidget/Info.plist "$PLUGINS_DIR/Info.plist"
+
+          # 2. Compile Swift WidgetKit Extension for iOS arm64
+          SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
+          echo "Compiling WidgetKit extension with SDK at: $SDK_PATH"
+
+          swiftc \
+            -target arm64-apple-ios15.0 \
+            -sdk "$SDK_PATH" \
+            -F "$SDK_PATH/System/Library/Frameworks" \
+            -framework WidgetKit \
+            -framework SwiftUI \
+            -framework Foundation \
+            -framework UIKit \
+            -emit-executable \
+            -parse-as-library \
+            ios/App/FinanceWidget/FinanceWidget.swift \
+            -o "$PLUGINS_DIR/FinanceWidget"
+
+          echo "Listing FinanceWidget.appex contents:"
+          ls -la "$PLUGINS_DIR"
+
       - name: Package Payload into Sideloadly-Ready .ipa
         run: |
           mkdir -p Payload
           cp -r derived_data/Build/Products/Release-iphoneos/App.app Payload/
+          echo "Verifying Payload structure:"
+          ls -la Payload/App.app/PlugIns/FinanceWidget.appex
           zip -r App.ipa Payload
 
       - name: Upload IPA Artifact
