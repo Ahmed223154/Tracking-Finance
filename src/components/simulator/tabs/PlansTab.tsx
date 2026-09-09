@@ -27,6 +27,7 @@ import {
 import { useI18n } from '../../../context/I18nContext';
 import { PlanCardItem } from '../plans/PlanCardItem';
 import { WhatIfSimulatorView } from '../plans/WhatIfSimulatorView';
+import { PlansGanttScheduleCard } from '../plans/PlansGanttScheduleCard';
 
 interface PlansTabProps {
   goals: PlanItem[];
@@ -308,6 +309,15 @@ export const PlansTab: React.FC<PlansTabProps> = ({
               <span>{t.targetAmount}: <strong className="text-[#1C1C1E] dark:text-white">{formatCurrency(capacityAnalysis.totalTargetAmount)}</strong></span>
             </div>
           </div>
+
+          {/* Plans Schedule / Timeline (Gantt Chart Card) */}
+          <PlansGanttScheduleCard
+            plans={plans}
+            unallocatedBalance={unallocatedBalance}
+            monthlyCapacity={capacityAnalysis.monthlyCapacity}
+            onOpenDetail={onOpenDetail}
+            onOpenAllocate={onOpenAllocate}
+          />
 
           {/* Priority Distribution Breakdown */}
           <div className="rounded-[28px] border border-[#E5E5EA] bg-white p-5 shadow-sm dark:border-[#3A3A3C] dark:bg-[#2C2C2E] space-y-3">
