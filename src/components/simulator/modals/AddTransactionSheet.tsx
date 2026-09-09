@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { TransactionItem, CategoryItem } from '../../../types/finance';
 import { X, ArrowDownLeft, ArrowUpRight, Plus, Calendar, Tag, FileText, Check } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
+import { AmountInput } from '../AmountInput';
+import { parseRawAmount } from '../../../services/currencyFormatter';
 
 interface AddTransactionSheetProps {
   categories: CategoryItem[];
@@ -33,7 +35,7 @@ export const AddTransactionSheet: React.FC<AddTransactionSheetProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const numericAmount = parseFloat(amount.replace(/,/g, ''));
+    const numericAmount = parseRawAmount(amount);
     if (isNaN(numericAmount) || numericAmount <= 0) {
       alert(language === 'ar' ? 'يرجى إدخال مبلغ صحيح.' : 'Please enter a valid amount.');
       return;
@@ -113,16 +115,15 @@ export const AddTransactionSheet: React.FC<AddTransactionSheetProps> = ({
               {language === 'ar' ? 'المبلغ' : 'Amount'} ({currency})
             </label>
             <div className="relative mt-1">
-              <input
-                type="number"
-                step="any"
+              <AmountInput
+                id="add-transaction-amount-input"
                 required
-                placeholder={language === 'ar' ? 'مثال: 250000' : 'e.g. 250000'}
+                placeholder={language === 'ar' ? 'مثال: 250,000' : 'e.g. 250,000'}
                 value={amount}
-                onChange={e => setAmount(e.target.value)}
+                onChangeValue={val => setAmount(val)}
                 className="w-full rounded-2xl border border-[#E5E5EA] bg-[#F2F2F7] py-3 pr-16 pl-4 text-2xl font-black text-[#1C1C1E] focus:border-[#007AFF] focus:bg-white focus:outline-none dark:border-[#3A3A3C] dark:bg-[#1C1C1E] dark:text-white dark:focus:bg-[#1C1C1E]"
               />
-              <span className="absolute top-4 right-4 font-bold text-xs text-[#8E8E93]">
+              <span className="absolute top-4 right-4 font-bold text-xs text-[#8E8E93] pointer-events-none">
                 {currency}
               </span>
             </div>

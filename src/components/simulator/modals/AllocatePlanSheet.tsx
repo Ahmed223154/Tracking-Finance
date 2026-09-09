@@ -3,30 +3,48 @@ import { PlanItem } from '../../../types/finance';
 import { X, Plus, Minus, AlertTriangle, CheckCircle, Wallet, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useI18n } from '../../../context/I18nContext';
+import { AmountInput } from '../AmountInput';
+import { formatAmountInput, parseRawAmount } from '../../../services/currencyFormatter';
 
 interface AllocatePlanSheetProps {
-  plan: PlanItem;
-  unallocatedBalance: number;
+  plan?: PlanItem;
+  goal?: PlanItem;
+  unallocatedBalance?: number;
   onClose: () => void;
-  onUpdatePlan: (updatedPlan: PlanItem) => void;
+  onUpdatePlan?: (updatedPlan: PlanItem) => void;
+  onUpdateGoal?: (updatedGoal: PlanItem) => void;
 }
 
 export const AllocatePlanSheet: React.FC<AllocatePlanSheetProps> = ({
   plan,
-  unallocatedBalance,
+  goal,
+  unallocatedBalance = 0,
   onClose,
   onUpdatePlan,
+  onUpdateGoal,
 }) => {
   const { t, language, formatCurrency } = useI18n();
   const [actionType, setActionType] = useState<'allocate' | 'withdraw'>('allocate');
   const [amount, setAmount] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const remaining = Math.max(0, plan.targetAmount - plan.allocatedAmount);
+  const currentPlan = plan || goal;
+  if (!currentPlan) {
+    return null;
+  }
+
+  const safeTarget = currentPlan.targetAmount || 0;
+  const safeAllocated = currentPlan.allocatedAmount || 0;
+  const remaining = Math.max(0, safeTarget - safeAllocated);
+
+  const handleUpdate = (updated: PlanItem) => {
+    if (onUpdatePlan) onUpdatePlan(updated);
+    if (onUpdateGoal) onUpdateGoal(updated);
+  };
 
   const handleApply = (e: React.FormEvent) => {
     e.preventDefault();
-    const val = parseFloat(amount.replace(/,/g, ''));
+    const val = parseRawAmount(amount);
     if (isNaN(val) || val <= 0) {
       setErrorMsg(language === 'ar' ? 'يرجى إدخال رقم موجب وصحيح.' : 'Please enter a valid positive number.');
       return;
@@ -41,14 +59,14 @@ export const AllocatePlanSheet: React.FC<AllocatePlanSheetProps> = ({
         );
         return;
       }
-      const newAllocated = plan.allocatedAmount + val;
-      const isNowCompleted = newAllocated >= plan.targetAmount;
+      const newAllocated = safeAllocated + val;
+      const isNowCompleted = newAllocated >= safeTarget;
 
-      onUpdatePlan({
-        ...plan,
+      handleUpdate({
+        ...currentPlan,
         allocatedAmount: newAllocated,
         isCompleted: isNowCompleted,
-        completedAt: isNowCompleted ? new Date().toISOString() : plan.completedAt,
+        completedAt: isNowCompleted ? new Date().toISOString() : currentPlan.completedAt,
         updatedAt: new Date().toISOString(),
       });
 
@@ -61,18 +79,18 @@ export const AllocatePlanSheet: React.FC<AllocatePlanSheetProps> = ({
       }
     } else {
       // Withdraw
-      if (val > plan.allocatedAmount) {
+      if (val > safeAllocated) {
         setErrorMsg(
           language === 'ar'
-            ? `لا يمكن سحب أكثر من المبلغ المخصص حالياً (${formatCurrency(plan.allocatedAmount)}).`
-            : `Cannot withdraw more than currently allocated (${formatCurrency(plan.allocatedAmount)}).`
+            ? `لا يمكن سحب أكثر من المبلغ المخصص حالياً (${formatCurrency(safeAllocated)}).`
+            : `Cannot withdraw more than currently allocated (${formatCurrency(safeAllocated)}).`
         );
         return;
       }
-      const newAllocated = Math.max(0, plan.allocatedAmount - val);
+      const newAllocated = Math.max(0, safeAllocated - val);
 
-      onUpdatePlan({
-        ...plan,
+      handleUpdate({
+        ...currentPlan,
         allocatedAmount: newAllocated,
         isCompleted: false,
         completedAt: null,
@@ -96,7 +114,7 @@ export const AllocatePlanSheet: React.FC<AllocatePlanSheetProps> = ({
             <h3 className="font-bold text-base text-[#1C1C1E] dark:text-white">
               {language === 'ar' ? 'إدارة أموال الخطة' : 'Manage Plan Funds'}
             </h3>
-            <p className="text-xs text-[#8E8E93]">{plan.name}</p>
+            <p className="text-xs font-semibold text-[#007AFF]">{currentPlan.name}</p>
           </div>
           <button
             onClick={onClose}
@@ -121,7 +139,7 @@ export const AllocatePlanSheet: React.FC<AllocatePlanSheetProps> = ({
               {t.currentAllocation}
             </span>
             <div className="mt-0.5 font-bold text-[#007AFF]">
-              {formatCurrency(plan.allocatedAmount)} / {formatCurrency(plan.targetAmount)}
+              {formatCurrency(safeAllocated)} / {formatCurrency(safeTarget)}
             </div>
           </div>
         </div>
@@ -165,18 +183,24 @@ export const AllocatePlanSheet: React.FC<AllocatePlanSheetProps> = ({
             <label className="block text-xs font-bold text-[#8E8E93] uppercase tracking-wider">
               {language === 'ar' ? 'المبلغ' : 'Amount'} ({language === 'ar' ? 'د.ع' : 'IQD'})
             </label>
-            <input
-              type="number"
-              step="any"
-              required
-              placeholder="0"
-              value={amount}
-              onChange={e => {
-                setAmount(e.target.value);
-                setErrorMsg(null);
-              }}
-              className="mt-1 w-full rounded-2xl border border-[#E5E5EA] bg-[#F2F2F7] py-2.5 px-4 text-xl font-black text-[#1C1C1E] focus:border-[#007AFF] focus:bg-white focus:outline-none dark:border-[#3A3A3C] dark:bg-[#1C1C1E] dark:text-white dark:focus:bg-[#1C1C1E]"
-            />
+            <div className="relative mt-1">
+              <AmountInput
+                id="allocate-plan-amount-input"
+                required
+                placeholder="0"
+                value={amount}
+                onChangeValue={val => {
+                  setAmount(val);
+                  setErrorMsg(null);
+                }}
+                className="w-full rounded-xl border border-[#D1D1D6] bg-[#F2F2F7] px-3.5 py-3 text-xl font-black text-[#1C1C1E] placeholder:text-[#8E8E93] focus:border-[#007AFF] focus:bg-[#FFFFFF] focus:text-[#1C1C1E] focus:outline-none focus:ring-2 focus:ring-[#007AFF]/20 dark:border-[#3A3A3C] dark:bg-[#1C1C1E] dark:text-[#FFFFFF] dark:placeholder:text-[#636366] dark:focus:bg-[#1C1C1E] dark:focus:text-[#FFFFFF] dark:focus:border-[#007AFF]"
+              />
+              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center rtl:right-auto rtl:left-3">
+                <span className="text-xs font-bold text-[#8E8E93]">
+                  {language === 'ar' ? 'د.ع' : 'IQD'}
+                </span>
+              </div>
+            </div>
           </div>
 
           {/* Quick Amounts */}
@@ -185,7 +209,10 @@ export const AllocatePlanSheet: React.FC<AllocatePlanSheetProps> = ({
               <button
                 key={val}
                 type="button"
-                onClick={() => setAmount(val.toString())}
+                onClick={() => {
+                  setAmount(formatAmountInput(val.toString()));
+                  setErrorMsg(null);
+                }}
                 className="flex-1 rounded-xl border border-[#E5E5EA] bg-white py-1.5 text-xs font-bold text-[#3A3A3C] hover:bg-[#F2F2F7] dark:border-[#3A3A3C] dark:bg-[#1C1C1E] dark:text-[#E5E5EA] transition-colors"
               >
                 +{val / 1000}k
@@ -194,7 +221,10 @@ export const AllocatePlanSheet: React.FC<AllocatePlanSheetProps> = ({
             {actionType === 'allocate' && remaining > 0 && remaining <= unallocatedBalance && (
               <button
                 type="button"
-                onClick={() => setAmount(remaining.toString())}
+                onClick={() => {
+                  setAmount(formatAmountInput(remaining.toString()));
+                  setErrorMsg(null);
+                }}
                 className="flex-1 rounded-xl bg-blue-50 py-1.5 text-xs font-bold text-[#007AFF] hover:bg-blue-100 dark:bg-blue-950/40 transition-colors"
               >
                 {language === 'ar' ? 'إكمال الخطة' : 'Fill Plan'}

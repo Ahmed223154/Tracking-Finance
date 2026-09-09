@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { BudgetItem, TransactionItem, CategoryItem } from '../../../types/finance';
 import { X, Plus, Trash2, AlertTriangle, CheckCircle, TrendingUp } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
+import { AmountInput } from '../AmountInput';
+import { parseRawAmount } from '../../../services/currencyFormatter';
 
 interface BudgetsModalProps {
   budgets: BudgetItem[];
@@ -37,7 +39,7 @@ export const BudgetsModal: React.FC<BudgetsModalProps> = ({
 
   const handleAddSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const limit = parseFloat(limitInput.replace(/,/g, ''));
+    const limit = parseRawAmount(limitInput);
     if (isNaN(limit) || limit <= 0) {
       alert(language === 'ar' ? 'يرجى إدخال حد شهري صحيح.' : 'Please enter a valid monthly limit.');
       return;
@@ -111,13 +113,12 @@ export const BudgetsModal: React.FC<BudgetsModalProps> = ({
                 <label className="block text-[11px] font-bold text-[#8E8E93] uppercase tracking-wider">
                   {language === 'ar' ? 'الحد الأقصى الشهري' : 'Monthly Limit'} ({language === 'ar' ? 'د.ع' : 'IQD'})
                 </label>
-                <input
-                  type="number"
-                  step="any"
+                <AmountInput
+                  id="budget-modal-limit-input"
                   required
-                  placeholder={language === 'ar' ? 'مثال: 500000' : 'e.g. 500000'}
+                  placeholder={language === 'ar' ? 'مثال: 500,000' : 'e.g. 500,000'}
                   value={limitInput}
-                  onChange={e => setLimitInput(e.target.value)}
+                  onChangeValue={val => setLimitInput(val)}
                   className="mt-1 w-full rounded-xl border border-[#E5E5EA] bg-white p-2.5 text-xs font-black focus:border-[#007AFF] focus:outline-none dark:border-[#3A3A3C] dark:bg-[#2C2C2E] dark:text-white"
                 />
               </div>

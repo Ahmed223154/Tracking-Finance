@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { TransactionItem, CategoryItem } from '../../../types/finance';
 import { X, ArrowDownLeft, ArrowUpRight, Trash2, Check } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
+import { AmountInput } from '../AmountInput';
+import { formatInitialAmount, parseRawAmount } from '../../../services/currencyFormatter';
 
 interface EditTransactionSheetProps {
   transaction: TransactionItem;
@@ -20,7 +22,7 @@ export const EditTransactionSheet: React.FC<EditTransactionSheetProps> = ({
 }) => {
   const { t, language, translateCat } = useI18n();
   const [type, setType] = useState<'income' | 'expense'>(transaction.type);
-  const [amount, setAmount] = useState<string>(transaction.amount.toString());
+  const [amount, setAmount] = useState<string>(formatInitialAmount(transaction.amount));
   const [date, setDate] = useState<string>(new Date(transaction.date).toISOString().split('T')[0]);
   const [category, setCategory] = useState<string>(transaction.category || 'Food');
   const [source, setSource] = useState<string>(transaction.source || 'Salary');
@@ -33,7 +35,7 @@ export const EditTransactionSheet: React.FC<EditTransactionSheetProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const numericAmount = parseFloat(amount);
+    const numericAmount = parseRawAmount(amount);
     if (isNaN(numericAmount) || numericAmount <= 0) {
       alert(language === 'ar' ? 'يرجى إدخال مبلغ صحيح.' : 'Please enter a valid amount.');
       return;
@@ -96,12 +98,11 @@ export const EditTransactionSheet: React.FC<EditTransactionSheetProps> = ({
             <label className="block text-xs font-bold text-[#8E8E93] uppercase tracking-wider">
               {language === 'ar' ? 'المبلغ' : 'Amount'} ({language === 'ar' ? 'د.ع' : transaction.currency})
             </label>
-            <input
-              type="number"
-              step="any"
+            <AmountInput
+              id="edit-transaction-amount-input"
               required
               value={amount}
-              onChange={e => setAmount(e.target.value)}
+              onChangeValue={val => setAmount(val)}
               className="mt-1 w-full rounded-2xl border border-[#E5E5EA] bg-[#F2F2F7] py-2.5 px-4 text-xl font-black text-[#1C1C1E] focus:border-[#007AFF] focus:bg-white focus:outline-none dark:border-[#3A3A3C] dark:bg-[#1C1C1E] dark:text-white dark:focus:bg-[#1C1C1E]"
             />
           </div>

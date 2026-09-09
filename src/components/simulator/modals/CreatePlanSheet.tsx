@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { PlanItem, PlanPriority } from '../../../types/finance';
 import { X, Target, Calendar, Flag, Sparkles } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
+import { AmountInput } from '../AmountInput';
+import { formatAmountInput, parseRawAmount } from '../../../services/currencyFormatter';
 
 interface CreatePlanSheetProps {
   onClose: () => void;
@@ -27,20 +29,20 @@ export const CreatePlanSheet: React.FC<CreatePlanSheetProps> = ({ onClose, onCre
 
   // Auto-calculate suggested monthly savings when target amount or date changes
   const handleCalculateSuggested = () => {
-    const amount = parseFloat(targetAmount.replace(/,/g, ''));
+    const amount = parseRawAmount(targetAmount);
     if (!isNaN(amount) && amount > 0 && hasDeadline) {
       const now = new Date();
       const target = new Date(targetDate);
       const months = Math.max(1, (target.getFullYear() - now.getFullYear()) * 12 + (target.getMonth() - now.getMonth()));
       const suggested = Math.round(amount / months);
-      setPlannedMonthlyAmount(suggested.toString());
+      setPlannedMonthlyAmount(formatAmountInput(suggested.toString()));
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
-    const amount = parseFloat(targetAmount.replace(/,/g, ''));
+    const amount = parseRawAmount(targetAmount);
     if (!name.trim()) {
       setErrorMsg(language === 'ar' ? 'يرجى كتابة عنوان الخطة المالية.' : 'Please provide a plan name.');
       return;
@@ -50,7 +52,7 @@ export const CreatePlanSheet: React.FC<CreatePlanSheetProps> = ({ onClose, onCre
       return;
     }
 
-    const plannedMonthly = parseFloat(plannedMonthlyAmount.replace(/,/g, '')) || 0;
+    const plannedMonthly = parseRawAmount(plannedMonthlyAmount) || 0;
 
     onCreate({
       name: name.trim(),
@@ -151,15 +153,21 @@ export const CreatePlanSheet: React.FC<CreatePlanSheetProps> = ({ onClose, onCre
             <label className="block text-xs font-bold text-[#8E8E93] uppercase tracking-wider">
               {t.planTargetLabel} ({language === 'ar' ? 'د.ع' : 'IQD'})
             </label>
-            <input
-              type="number"
-              step="any"
-              required
-              placeholder={language === 'ar' ? 'مثال: 5000000' : 'e.g. 5000000'}
-              value={targetAmount}
-              onChange={e => setTargetAmount(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-[#E5E5EA] bg-[#F2F2F7] px-3.5 py-2.5 text-xl font-black text-[#1C1C1E] focus:border-[#007AFF] focus:bg-white focus:outline-none dark:border-[#3A3A3C] dark:bg-[#1C1C1E] dark:text-white"
-            />
+            <div className="relative mt-1">
+              <AmountInput
+                id="create-plan-target-amount"
+                required
+                placeholder={language === 'ar' ? 'مثال: 5,000,000' : 'e.g. 5,000,000'}
+                value={targetAmount}
+                onChangeValue={val => setTargetAmount(val)}
+                className="w-full rounded-xl border border-[#D1D1D6] bg-[#F2F2F7] px-3.5 py-3 text-xl font-black text-[#1C1C1E] placeholder:text-[#8E8E93] focus:border-[#007AFF] focus:bg-[#FFFFFF] focus:text-[#1C1C1E] focus:outline-none focus:ring-2 focus:ring-[#007AFF]/20 dark:border-[#3A3A3C] dark:bg-[#1C1C1E] dark:text-[#FFFFFF] dark:placeholder:text-[#636366] dark:focus:bg-[#1C1C1E] dark:focus:text-[#FFFFFF] dark:focus:border-[#007AFF]"
+              />
+              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center rtl:right-auto rtl:left-3">
+                <span className="text-xs font-bold text-[#8E8E93] dark:text-[#8E8E93]">
+                  {language === 'ar' ? 'د.ع' : 'IQD'}
+                </span>
+              </div>
+            </div>
           </div>
 
           <div>
@@ -178,14 +186,20 @@ export const CreatePlanSheet: React.FC<CreatePlanSheetProps> = ({ onClose, onCre
                 </button>
               )}
             </div>
-            <input
-              type="number"
-              step="any"
-              placeholder={language === 'ar' ? 'المبلغ المستهدف ادخاره كل شهر' : 'Target amount to save each month'}
-              value={plannedMonthlyAmount}
-              onChange={e => setPlannedMonthlyAmount(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-[#E5E5EA] bg-white px-3.5 py-2 text-xs font-semibold text-[#1C1C1E] focus:border-[#007AFF] focus:outline-none dark:border-[#3A3A3C] dark:bg-[#1C1C1E] dark:text-white"
-            />
+            <div className="relative mt-1">
+              <AmountInput
+                id="create-plan-monthly-amount"
+                placeholder={language === 'ar' ? 'المبلغ المستهدف ادخاره كل شهر' : 'Target amount to save each month'}
+                value={plannedMonthlyAmount}
+                onChangeValue={val => setPlannedMonthlyAmount(val)}
+                className="w-full rounded-xl border border-[#D1D1D6] bg-white px-3.5 py-2.5 text-xs font-semibold text-[#1C1C1E] placeholder:text-[#8E8E93] focus:border-[#007AFF] focus:text-[#1C1C1E] focus:outline-none focus:ring-2 focus:ring-[#007AFF]/20 dark:border-[#3A3A3C] dark:bg-[#1C1C1E] dark:text-[#FFFFFF] dark:placeholder:text-[#636366] dark:focus:bg-[#1C1C1E] dark:focus:text-[#FFFFFF] dark:focus:border-[#007AFF]"
+              />
+              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center rtl:right-auto rtl:left-3">
+                <span className="text-[10px] font-bold text-[#8E8E93] dark:text-[#8E8E93]">
+                  {language === 'ar' ? 'د.ع/شهر' : 'IQD/mo'}
+                </span>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-2">

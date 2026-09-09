@@ -17,6 +17,7 @@ import { CreateGoalSheet as CreatePlanSheet } from './components/simulator/modal
 import { GoalDetailSheet as PlanDetailSheet } from './components/simulator/modals/GoalDetailSheet';
 import { BudgetsModal } from './components/simulator/modals/BudgetsModal';
 import { FaceIDModal } from './components/simulator/modals/FaceIDModal';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { CodeExplorer } from './components/code-hub/CodeExplorer';
 import { DeployGuide } from './components/code-hub/DeployGuide';
 import { FinancialEngine } from './services/financialEngine';
@@ -344,12 +345,16 @@ function FinanceAppMain() {
       )}
 
       {allocatingPlan && (
-        <AllocatePlanSheet
-          goal={allocatingPlan}
-          unallocatedBalance={unallocatedBalance}
-          onClose={() => setAllocatingPlan(null)}
-          onUpdateGoal={handleUpdatePlan}
-        />
+        <ErrorBoundary fallbackTitle="Error loading Allocate Funds">
+          <AllocatePlanSheet
+            plan={allocatingPlan}
+            goal={allocatingPlan}
+            unallocatedBalance={unallocatedBalance}
+            onClose={() => setAllocatingPlan(null)}
+            onUpdatePlan={handleUpdatePlan}
+            onUpdateGoal={handleUpdatePlan}
+          />
+        </ErrorBoundary>
       )}
 
       {isCreatePlanOpen && (
