@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useDeferredValue } from 'react';
 import { PlanItem, TransactionItem } from '../../../types/finance';
 import { FinancialEngine } from '../../../services/financialEngine';
+import { SmoothSimulatorSlider } from './SmoothSimulatorSlider';
 import {
   SlidersHorizontal,
   Sparkles,
@@ -47,29 +48,34 @@ export const WhatIfSimulatorView: React.FC<WhatIfSimulatorViewProps> = ({
     return activePlans.find(p => p.id === selectedPlanId) || activePlans[0] || null;
   }, [activePlans, selectedPlanId]);
 
-  // Simulation parameters
+  // Simulation parameters (local values updated immediately for responsive controls)
   const [extraMonthly, setExtraMonthly] = useState<number>(50000);
   const [lumpSum, setLumpSum] = useState<number>(0);
   const [expenseCut, setExpenseCut] = useState<number>(0);
 
-  // Compute simulation
+  // Defer heavy calculation parameters to enable uninterrupted 60fps slider tracking
+  const deferredExtraMonthly = useDeferredValue(extraMonthly);
+  const deferredLumpSum = useDeferredValue(lumpSum);
+  const deferredExpenseCut = useDeferredValue(expenseCut);
+
+  // Compute simulation using deferred values to prevent frame drops during drag
   const simResult = useMemo(() => {
     if (!currentPlan) return null;
-    const simTarget = Math.max(currentPlan.allocatedAmount, currentPlan.targetAmount - lumpSum);
-    const simMonthly = (currentPlan.plannedMonthlyAmount || 0) + extraMonthly;
+    const simTarget = Math.max(currentPlan.allocatedAmount, currentPlan.targetAmount - deferredLumpSum);
+    const simMonthly = (currentPlan.plannedMonthlyAmount || 0) + deferredExtraMonthly;
     return FinancialEngine.calculateIndividualPlanWhatIf(
       currentPlan,
       simTarget,
       simMonthly,
-      expenseCut,
+      deferredExpenseCut,
       currentPlan.targetDate,
       monthlyCapacity
     );
-  }, [currentPlan, extraMonthly, lumpSum, expenseCut, monthlyCapacity]);
+  }, [currentPlan, deferredExtraMonthly, deferredLumpSum, deferredExpenseCut, monthlyCapacity]);
 
   const milestones = useMemo(() => {
     if (!simResult || !currentPlan) return [];
-    const targetNet = Math.max(currentPlan.allocatedAmount, currentPlan.targetAmount - lumpSum);
+    const targetNet = Math.max(currentPlan.allocatedAmount, currentPlan.targetAmount - deferredLumpSum);
     return [25, 50, 75, 100].map(pct => {
       const milestoneAmount = (targetNet * pct) / 100;
       const needed = Math.max(0, milestoneAmount - currentPlan.allocatedAmount);
@@ -82,7 +88,7 @@ export const WhatIfSimulatorView: React.FC<WhatIfSimulatorViewProps> = ({
         targetDate: targetDate.toISOString(),
       };
     });
-  }, [simResult, currentPlan, lumpSum]);
+  }, [simResult, currentPlan, deferredLumpSum]);
 
   const resetSliders = () => {
     setExtraMonthly(0);
@@ -178,76 +184,57 @@ export const WhatIfSimulatorView: React.FC<WhatIfSimulatorViewProps> = ({
         </h4>
 
         {/* Control 1: Extra Monthly Contribution */}
-        <div className="space-y-1.5">
-          <div className="flex justify-between text-xs font-semibold">
-            <span className="text-[#1C1C1E] dark:text-[#E5E5EA]">
-              {language === 'ar' ? 'مساهمة شهرية إضافية للخطة' : 'Extra Monthly Contribution'}
-            </span>
-            <span className="font-black text-[#007AFF]">+{formatCurrency(extraMonthly)}/mo</span>
-          </div>
-          <input
-            type="range"
-            min="0"
-            max="500000"
-            step="25000"
-            value={extraMonthly}
-            onChange={e => setExtraMonthly(Number(e.target.value))}
-            className="w-full accent-[#007AFF] h-2 bg-[#E5E5EA] dark:bg-[#38383A] rounded-lg cursor-pointer"
-          />
-          <div className="flex justify-between text-[10px] text-[#8E8E93]">
-            <span>+0</span>
-            <span>+250,000</span>
-            <span>+500,000 IQD</span>
-          </div>
-        </div>
+        <SmoothSimulatorSlider
+          id="whatif-slider-extra-monthly"
+          label={language === 'ar' ? 'مساهمة شهرية إضافية للخطة' : 'Extra Monthly Contribution'}
+          value={extraMonthly}
+          min={0}
+          max={500000}
+          step={25000}
+          colorClass="accent-[#007AFF]"
+          textColorClass="text-[#007AFF]"
+          unitLabel="/mo"
+          minLabel="+0"
+          midLabel="+250,000"
+          maxLabel="+500,000 IQD"
+          onChange={setExtraMonthly}
+          formatValue={formatCurrency}
+        />
 
         {/* Control 2: Lump-Sum Injection */}
-        <div className="space-y-1.5">
-          <div className="flex justify-between text-xs font-semibold">
-            <span className="text-[#1C1C1E] dark:text-[#E5E5EA]">
-              {language === 'ar' ? 'دفعة نقدية فورية من الفائض' : 'Lump-Sum Cash Injection'}
-            </span>
-            <span className="font-black text-[#34C759]">+{formatCurrency(lumpSum)}</span>
-          </div>
-          <input
-            type="range"
-            min="0"
-            max="2000000"
-            step="50000"
-            value={lumpSum}
-            onChange={e => setLumpSum(Number(e.target.value))}
-            className="w-full accent-[#34C759] h-2 bg-[#E5E5EA] dark:bg-[#38383A] rounded-lg cursor-pointer"
-          />
-          <div className="flex justify-between text-[10px] text-[#8E8E93]">
-            <span>0</span>
-            <span>{language === 'ar' ? 'الفائض الحالي:' : 'Available:'} {formatCurrency(unallocatedBalance)}</span>
-            <span>+2,000,000 IQD</span>
-          </div>
-        </div>
+        <SmoothSimulatorSlider
+          id="whatif-slider-lump-sum"
+          label={language === 'ar' ? 'دفعة نقدية فورية من الفائض' : 'Lump-Sum Cash Injection'}
+          value={lumpSum}
+          min={0}
+          max={2000000}
+          step={50000}
+          colorClass="accent-[#34C759]"
+          textColorClass="text-[#34C759]"
+          minLabel="0"
+          midLabel={`${language === 'ar' ? 'الفائض الحالي:' : 'Available:'} ${formatCurrency(unallocatedBalance)}`}
+          maxLabel="+2,000,000 IQD"
+          onChange={setLumpSum}
+          formatValue={formatCurrency}
+        />
 
         {/* Control 3: Expense Reduction Savings */}
-        <div className="space-y-1.5">
-          <div className="flex justify-between text-xs font-semibold">
-            <span className="text-[#1C1C1E] dark:text-[#E5E5EA]">
-              {language === 'ar' ? 'تحويل وفورات خفض المصاريف' : 'Expense Reduction Savings'}
-            </span>
-            <span className="font-black text-[#FF9500]">+{formatCurrency(expenseCut)}/mo</span>
-          </div>
-          <input
-            type="range"
-            min="0"
-            max="200000"
-            step="10000"
-            value={expenseCut}
-            onChange={e => setExpenseCut(Number(e.target.value))}
-            className="w-full accent-[#FF9500] h-2 bg-[#E5E5EA] dark:bg-[#38383A] rounded-lg cursor-pointer"
-          />
-          <div className="flex justify-between text-[10px] text-[#8E8E93]">
-            <span>+0</span>
-            <span>+100,000</span>
-            <span>+200,000 IQD</span>
-          </div>
-        </div>
+        <SmoothSimulatorSlider
+          id="whatif-slider-expense-cut"
+          label={language === 'ar' ? 'تحويل وفورات خفض المصاريف' : 'Expense Reduction Savings'}
+          value={expenseCut}
+          min={0}
+          max={200000}
+          step={25000}
+          colorClass="accent-[#FF9500]"
+          textColorClass="text-[#FF9500]"
+          unitLabel="/mo"
+          minLabel="+0"
+          midLabel="+100,000"
+          maxLabel="+200,000 IQD"
+          onChange={setExpenseCut}
+          formatValue={formatCurrency}
+        />
       </div>
 
       {/* Real-time Dynamic Results Card */}

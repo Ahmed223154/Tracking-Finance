@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { PlanItem, TransactionItem, PlanPriority } from '../../../types/finance';
 import { FinancialEngine } from '../../../services/financialEngine';
 import {
@@ -55,24 +55,20 @@ export const PlansTab: React.FC<PlansTabProps> = ({
     }
   }, [initialSubTab]);
 
-  // What-If Simulator inputs
-  const [incomeBoost, setIncomeBoost] = useState<number>(0);
-  const [expenseCut, setExpenseCut] = useState<number>(0);
-  const [lumpSum, setLumpSum] = useState<number>(0);
+  const activePlans = useMemo(() => plans.filter(p => !p.isCompleted), [plans]);
+  const completedPlans = useMemo(() => plans.filter(p => p.isCompleted), [plans]);
 
-  const activePlans = plans.filter(p => !p.isCompleted);
-  const completedPlans = plans.filter(p => p.isCompleted);
-
-  const unallocatedBalance = FinancialEngine.unallocatedBalance(transactions, plans);
-  const avgSavings = FinancialEngine.historicalMonthlyAverageSavings(transactions);
-  const capacityAnalysis = FinancialEngine.analyzeFinancialCapacity(transactions, plans);
-
-  const whatIfResult = FinancialEngine.calculateWhatIf(
-    plans,
-    capacityAnalysis.monthlyCapacity,
-    incomeBoost,
-    expenseCut,
-    lumpSum
+  const unallocatedBalance = useMemo(
+    () => FinancialEngine.unallocatedBalance(transactions, plans),
+    [transactions, plans]
+  );
+  const avgSavings = useMemo(
+    () => FinancialEngine.historicalMonthlyAverageSavings(transactions),
+    [transactions]
+  );
+  const capacityAnalysis = useMemo(
+    () => FinancialEngine.analyzeFinancialCapacity(transactions, plans),
+    [transactions, plans]
   );
 
   const priorityBadges: Record<PlanPriority, { labelEn: string; labelAr: string; color: string; badge: string }> = {
