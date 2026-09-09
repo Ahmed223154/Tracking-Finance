@@ -22,7 +22,9 @@ jobs:
           cache: 'npm'
 
       - name: Install Dependencies
-        run: npm ci
+        run: |
+          npm ci --include=optional || npm install --include=optional
+          npm rebuild @rollup/rollup-darwin-arm64 @rollup/rollup-darwin-x64 || true
 
       - name: Build Web App
         run: npm run build
