@@ -10,6 +10,7 @@ interface AddTransactionSheetProps {
   onClose: () => void;
   onSave: (transaction: Omit<TransactionItem, 'id' | 'createdAt' | 'updatedAt'>) => void;
   onAddCategory: (name: string, type: 'income_source' | 'expense_category') => void;
+  initialType?: 'expense' | 'income';
 }
 
 export const AddTransactionSheet: React.FC<AddTransactionSheetProps> = ({
@@ -17,9 +18,10 @@ export const AddTransactionSheet: React.FC<AddTransactionSheetProps> = ({
   onClose,
   onSave,
   onAddCategory,
+  initialType = 'expense',
 }) => {
   const { t, language, translateCat } = useI18n();
-  const [type, setType] = useState<'income' | 'expense'>('expense');
+  const [type, setType] = useState<'income' | 'expense'>(initialType);
   const [amount, setAmount] = useState<string>('');
   const [currency] = useState<string>(language === 'ar' ? 'د.ع' : 'IQD');
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);

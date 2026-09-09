@@ -10,6 +10,7 @@ interface DashboardTabProps {
   onOpenAdd: () => void;
   onNavigateTab: (tabIndex: number) => void;
   onSelectGoal: (goal: GoalItem) => void;
+  onOpenWidgetsHub?: () => void;
 }
 
 export const DashboardTab: React.FC<DashboardTabProps> = ({
@@ -18,6 +19,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   onOpenAdd,
   onNavigateTab,
   onSelectGoal,
+  onOpenWidgetsHub,
 }) => {
   const { t, language, formatCurrency, formatSignedCurrency, translateCat } = useI18n();
 
@@ -123,20 +125,40 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         </div>
       </div>
 
-      {/* Quick Action Banner */}
-      <button
-        id="quick-add-transaction-banner"
-        onClick={onOpenAdd}
-        className="flex w-full items-center justify-between rounded-xl bg-[#007AFF] px-5 py-3 text-white font-semibold shadow-lg shadow-blue-500/25 transition-colors hover:bg-[#0062CC] active:scale-[0.98]"
-      >
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <Plus className="h-4 w-4" />
-          <span>{t.addTransactionBtn}</span>
-        </div>
-        <span className="rounded-lg bg-white/20 px-2.5 py-0.5 text-xs font-semibold">
-          {language === 'ar' ? 'دخل أو مصروف' : 'Income or Expense'}
-        </span>
-      </button>
+      {/* Quick Action Banners */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <button
+          id="quick-add-transaction-banner"
+          onClick={onOpenAdd}
+          className="flex items-center justify-between rounded-2xl bg-[#007AFF] px-4 py-3 text-white font-semibold shadow-md shadow-blue-500/20 transition-all hover:bg-[#0062CC] active:scale-[0.98]"
+        >
+          <div className="flex items-center gap-2 text-xs font-bold">
+            <Plus className="h-4 w-4" />
+            <span>{t.addTransactionBtn}</span>
+          </div>
+          <span className="rounded-lg bg-white/20 px-2 py-0.5 text-[10px] font-semibold">
+            {language === 'ar' ? 'تسجيل سريع' : 'Quick Log'}
+          </span>
+        </button>
+
+        {onOpenWidgetsHub && (
+          <button
+            id="open-ios-widgets-hub-btn"
+            onClick={onOpenWidgetsHub}
+            className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-indigo-500/10 to-blue-500/10 dark:from-indigo-950/40 dark:to-blue-950/40 border border-blue-200/70 dark:border-blue-800/50 px-4 py-3 text-[#007AFF] dark:text-blue-300 font-semibold transition-all hover:bg-blue-500/15 active:scale-[0.98]"
+          >
+            <div className="flex items-center gap-2 text-xs font-bold">
+              <span className="flex h-5 w-5 items-center justify-center rounded-lg bg-[#007AFF] text-white text-[10px]">
+                ⚡
+              </span>
+              <span>{language === 'ar' ? 'الويدجت واختصارات 3D' : 'Widgets & 3D Touch'}</span>
+            </div>
+            <span className="rounded-lg bg-[#007AFF]/10 dark:bg-white/10 px-2 py-0.5 text-[10px] font-bold">
+              iOS
+            </span>
+          </button>
+        )}
+      </div>
 
       {/* Active Goals Snapshot - Professional Polish */}
       <div id="active-goals-snapshot" className="space-y-3">

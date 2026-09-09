@@ -16,6 +16,7 @@ interface SettingsTabProps {
   theme: string;
   onChangeTheme: (theme: string) => void;
   onTriggerFaceID: () => void;
+  onOpenWidgetsHub?: () => void;
 }
 
 export const SettingsTab: React.FC<SettingsTabProps> = ({
@@ -31,6 +32,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   theme,
   onChangeTheme,
   onTriggerFaceID,
+  onOpenWidgetsHub,
 }) => {
   const { t, language, setLanguage, isRTL, translateCat } = useI18n();
   const [showCategoryManager, setShowCategoryManager] = useState(false);
@@ -212,6 +214,34 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             {t.testFaceIdBtn}
           </button>
         )}
+      </div>
+
+      {/* iOS Home Screen Widgets & 3D Touch Quick Actions */}
+      <div className="rounded-[24px] border border-blue-200/80 bg-gradient-to-br from-white to-blue-50/40 p-5 shadow-sm dark:border-blue-900/40 dark:from-[#2C2C2E] dark:to-blue-950/20">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#007AFF] text-white shadow-xs">
+              <Smartphone className="h-4 w-4" />
+            </div>
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[#1C1C1E] dark:text-white">
+                {language === 'ar' ? 'الويدجت واختصارات الشاشة الرئيسية' : 'iOS Widgets & 3D Touch'}
+              </h3>
+              <p className="text-[11px] text-[#8E8E93]">
+                {language === 'ar' ? 'أدوات WidgetKit 2x2 و 2x4 وروابط App Groups' : 'WidgetKit Small 2x2, Medium 2x4 & URL Schemes'}
+              </p>
+            </div>
+          </div>
+
+          {onOpenWidgetsHub && (
+            <button
+              onClick={onOpenWidgetsHub}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[#007AFF] px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#0062CC] transition-all"
+            >
+              <span>{language === 'ar' ? 'معاينة واختبار' : 'Preview & Test'}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Budgets Management */}

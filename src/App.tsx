@@ -21,8 +21,11 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { CodeExplorer } from './components/code-hub/CodeExplorer';
 import { DeployGuide } from './components/code-hub/DeployGuide';
 import { FinancialEngine } from './services/financialEngine';
-import { Smartphone, FileCode2, BookOpen, ShieldCheck } from 'lucide-react';
+import { Smartphone, FileCode2, BookOpen, ShieldCheck, LayoutGrid, Zap } from 'lucide-react';
 import { useI18n, I18nProvider, I18nContext, defaultI18nContext } from './context/I18nContext';
+import { WidgetBridge } from './services/widgetBridge';
+import { DeepLinkService } from './services/deepLinkService';
+import { IOSWidgetsHubModal } from './components/simulator/widgets/IOSWidgetsHubModal';
 
 function FinanceAppMain() {
   const { t, language } = useI18n();
@@ -31,6 +34,7 @@ function FinanceAppMain() {
 
   // Simulator state: 5 Native iOS Tabs (0: Dashboard, 1: Plans, 2: Transactions, 3: Analytics, 4: Settings)
   const [activeTab, setActiveTab] = useState<number>(0);
+  const [plansSubTab, setPlansSubTab] = useState<'dashboard' | 'plans' | 'whatif'>('dashboard');
   const [transactions, setTransactions] = useState<TransactionItem[]>(() => StorageService.loadTransactions());
   const [plans, setPlans] = useState<PlanItem[]>(() => StorageService.loadPlans());
   const [budgets, setBudgets] = useState<BudgetItem[]>(() => StorageService.loadBudgets());
@@ -38,14 +42,53 @@ function FinanceAppMain() {
   const [biometricsEnabled, setBiometricsEnabled] = useState<boolean>(() => StorageService.getBiometrics());
   const [theme, setTheme] = useState<string>(() => StorageService.getTheme());
 
-  // Modal sheets
+  // Modal sheets & iOS Widget Hub
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [addInitialType, setAddInitialType] = useState<'expense' | 'income'>('expense');
+  const [isWidgetsModalOpen, setIsWidgetsModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<TransactionItem | null>(null);
   const [allocatingPlan, setAllocatingPlan] = useState<PlanItem | null>(null);
   const [detailPlan, setDetailPlan] = useState<PlanItem | null>(null);
   const [isCreatePlanOpen, setIsCreatePlanOpen] = useState(false);
   const [isBudgetsOpen, setIsBudgetsOpen] = useState(false);
   const [isFaceIDOpen, setIsFaceIDOpen] = useState(false);
+
+  // Sync with App Group UserDefaults / localStorage for iOS Home Screen Widgets
+  useEffect(() => {
+    const unallocated = FinancialEngine.unallocatedBalance(transactions, plans);
+    const avgSavings = FinancialEngine.historicalMonthlyAverageSavings(transactions);
+    WidgetBridge.syncData(transactions, plans, unallocated, avgSavings, language);
+  }, [transactions, plans, language]);
+
+  // Deep Linking & iOS 3D Touch Quick Actions Listener
+  useEffect(() => {
+    const cleanup = DeepLinkService.addListener(action => {
+      if (action.type === 'add-expense') {
+        setActiveMainView('simulator');
+        setAddInitialType('expense');
+        setIsAddOpen(true);
+      } else if (action.type === 'add-income') {
+        setActiveMainView('simulator');
+        setAddInitialType('income');
+        setIsAddOpen(true);
+      } else if (action.type === 'plans-dashboard') {
+        setActiveMainView('simulator');
+        setActiveTab(1);
+        setPlansSubTab('dashboard');
+      } else if (action.type === 'plan-detail') {
+        setActiveMainView('simulator');
+        const found = plans.find(p => p.id === action.planId);
+        if (found) {
+          setActiveTab(1);
+          setDetailPlan(found);
+        } else {
+          setActiveTab(1);
+        }
+      }
+    });
+
+    return cleanup;
+  }, [plans]);
 
   // Sync to local storage
   useEffect(() => {
@@ -261,9 +304,22 @@ function FinanceAppMain() {
               </button>
             </div>
 
+            {/* iOS Widgets & Quick Actions Launcher */}
+            <button
+              onClick={() => setIsWidgetsModalOpen(true)}
+              className="flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50/80 px-2.5 py-1 text-xs font-semibold text-[#007AFF] shadow-xs hover:bg-blue-100 transition-all dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-300"
+              title="iOS Home Screen Widgets & 3D Touch Quick Actions"
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{language === 'ar' ? 'الويدجت واختصارات iOS' : 'iOS Widgets'}</span>
+            </button>
+
             {/* Primary Action Button */}
             <button
-              onClick={() => setIsAddOpen(true)}
+              onClick={() => {
+                setAddInitialType('expense');
+                setIsAddOpen(true);
+              }}
               className="flex items-center gap-1 rounded-xl bg-[#007AFF] px-3 py-1.5 text-xs font-semibold text-white shadow-md shadow-blue-500/25 transition-all hover:bg-[#0062CC] active:scale-95"
             >
               <span>+ {t.addTransaction}</span>
@@ -286,9 +342,13 @@ function FinanceAppMain() {
                 <DashboardTab
                   transactions={transactions}
                   goals={plans}
-                  onOpenAdd={() => setIsAddOpen(true)}
+                  onOpenAdd={() => {
+                    setAddInitialType('expense');
+                    setIsAddOpen(true);
+                  }}
                   onNavigateTab={tabIndex => setActiveTab(tabIndex)}
                   onSelectGoal={plan => setDetailPlan(plan)}
+                  onOpenWidgetsHub={() => setIsWidgetsModalOpen(true)}
                 />
               )}
 
@@ -297,7 +357,7 @@ function FinanceAppMain() {
                 <PlansTab
                   goals={plans}
                   transactions={transactions}
-                  initialSubTab="dashboard"
+                  initialSubTab={plansSubTab}
                   onOpenCreateGoal={() => setIsCreatePlanOpen(true)}
                   onOpenAllocate={plan => setAllocatingPlan(plan)}
                   onOpenDetail={plan => setDetailPlan(plan)}
@@ -338,6 +398,7 @@ function FinanceAppMain() {
                   theme={theme}
                   onChangeTheme={t => setTheme(t)}
                   onTriggerFaceID={() => setIsFaceIDOpen(true)}
+                  onOpenWidgetsHub={() => setIsWidgetsModalOpen(true)}
                 />
               )}
             </IPhoneFrame>
@@ -353,9 +414,22 @@ function FinanceAppMain() {
       {isAddOpen && (
         <AddTransactionSheet
           categories={categories}
+          initialType={addInitialType}
           onClose={() => setIsAddOpen(false)}
           onSave={handleAddTransaction}
           onAddCategory={handleAddCategory}
+        />
+      )}
+
+      {/* iOS Widgets & Quick Actions Hub Modal */}
+      {isWidgetsModalOpen && (
+        <IOSWidgetsHubModal
+          transactions={transactions}
+          plans={plans}
+          unallocatedBalance={unallocatedBalance}
+          monthlyCapacity={FinancialEngine.historicalMonthlyAverageSavings(transactions)}
+          onClose={() => setIsWidgetsModalOpen(false)}
+          onDeepLinkTriggered={url => DeepLinkService.triggerDeepLink(url)}
         />
       )}
 
