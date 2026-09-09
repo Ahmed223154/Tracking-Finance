@@ -41,7 +41,7 @@ jobs:
       - name: Build Xcode App Bundle (.app)
         run: |
           xcodebuild build \
-            -workspace ios/App/App.xcworkspace \
+            -project ios/App/App.xcodeproj \
             -scheme App \
             -configuration Release \
             -destination 'generic/platform=iOS' \
@@ -60,6 +60,6 @@ jobs:
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: App-IPA
+          name: App-Sideloadly
           path: App.ipa
           retention-days: 5
