@@ -18,6 +18,7 @@ export const CreatePlanSheet: React.FC<CreatePlanSheetProps> = ({ onClose, onCre
   const [targetAmount, setTargetAmount] = useState('');
   const [priority, setPriority] = useState<PlanPriority>('medium');
   const [plannedMonthlyAmount, setPlannedMonthlyAmount] = useState('');
+  const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [hasDeadline, setHasDeadline] = useState(true);
   const [targetDate, setTargetDate] = useState(() => {
     const d = new Date();
@@ -31,9 +32,9 @@ export const CreatePlanSheet: React.FC<CreatePlanSheetProps> = ({ onClose, onCre
   const handleCalculateSuggested = () => {
     const amount = parseRawAmount(targetAmount);
     if (!isNaN(amount) && amount > 0 && hasDeadline) {
-      const now = new Date();
+      const start = new Date(startDate);
       const target = new Date(targetDate);
-      const months = Math.max(1, (target.getFullYear() - now.getFullYear()) * 12 + (target.getMonth() - now.getMonth()));
+      const months = Math.max(1, (target.getFullYear() - start.getFullYear()) * 12 + (target.getMonth() - start.getMonth()));
       const suggested = Math.round(amount / months);
       setPlannedMonthlyAmount(formatAmountInput(suggested.toString()));
     }
@@ -58,6 +59,7 @@ export const CreatePlanSheet: React.FC<CreatePlanSheetProps> = ({ onClose, onCre
       name: name.trim(),
       targetAmount: amount,
       currency: 'IQD',
+      startDate: startDate ? new Date(startDate).toISOString() : new Date().toISOString(),
       targetDate: hasDeadline ? new Date(targetDate).toISOString() : null,
       priority,
       plannedMonthlyAmount: plannedMonthly,
@@ -202,33 +204,56 @@ export const CreatePlanSheet: React.FC<CreatePlanSheetProps> = ({ onClose, onCre
             </div>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-[#8E8E93] uppercase tracking-wider">
-                {t.planDateLabel}
+          {/* Start Date & Target Date Inputs */}
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-bold text-[#8E8E93] uppercase tracking-wider">
+                {language === 'ar' ? 'تاريخ البدء' : 'Start Date'}
               </label>
-              <button
-                type="button"
-                onClick={() => setHasDeadline(!hasDeadline)}
-                className="text-[11px] font-semibold text-[#007AFF]"
-              >
-                {hasDeadline
-                  ? (language === 'ar' ? 'إلغاء الموعد النهائي' : 'No Deadline')
-                  : (language === 'ar' ? 'تحديد موعد نهائي' : 'Set Deadline')}
-              </button>
-            </div>
-
-            {hasDeadline && (
-              <div className="flex items-center gap-2 rounded-xl border border-[#E5E5EA] bg-white px-3.5 py-2 dark:border-[#3A3A3C] dark:bg-[#1C1C1E]">
-                <Calendar className="h-4 w-4 text-[#8E8E93]" />
+              <div className="mt-1 flex items-center gap-2 rounded-xl border border-[#E5E5EA] bg-white px-3.5 py-2 dark:border-[#3A3A3C] dark:bg-[#1C1C1E]">
+                <Calendar className="h-4 w-4 text-[#007AFF]" />
                 <input
                   type="date"
-                  value={targetDate}
-                  onChange={e => setTargetDate(e.target.value)}
+                  value={startDate}
+                  onChange={e => setStartDate(e.target.value)}
                   className="w-full bg-transparent text-xs font-semibold text-[#1C1C1E] focus:outline-none dark:text-white"
                 />
               </div>
-            )}
+              <p className="mt-1 text-[10px] text-[#8E8E93]">
+                {language === 'ar'
+                  ? 'يحدد خط الأساس للجدول الزمني وحساب الالتزامات السابقة أو المجدولة'
+                  : 'Timeline baseline for tracking elapsed pacing or scheduling future plans'}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-[#8E8E93] uppercase tracking-wider">
+                  {t.planDateLabel}
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setHasDeadline(!hasDeadline)}
+                  className="text-[11px] font-semibold text-[#007AFF]"
+                >
+                  {hasDeadline
+                    ? (language === 'ar' ? 'إلغاء الموعد النهائي' : 'No Deadline')
+                    : (language === 'ar' ? 'تحديد موعد نهائي' : 'Set Deadline')}
+                </button>
+              </div>
+
+              {hasDeadline && (
+                <div className="flex items-center gap-2 rounded-xl border border-[#E5E5EA] bg-white px-3.5 py-2 dark:border-[#3A3A3C] dark:bg-[#1C1C1E]">
+                  <Calendar className="h-4 w-4 text-[#8E8E93]" />
+                  <input
+                    type="date"
+                    value={targetDate}
+                    onChange={e => setTargetDate(e.target.value)}
+                    className="w-full bg-transparent text-xs font-semibold text-[#1C1C1E] focus:outline-none dark:text-white"
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           <div>

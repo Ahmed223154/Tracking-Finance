@@ -127,6 +127,57 @@ export class FinancialEngine {
       };
     }
 
+    // Plan Lifecycle: Postpone / Pause
+    if (plan.isPaused) {
+      return {
+        status: 'paused',
+        statusTitle: 'Paused',
+        statusBadgeColor: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700',
+        explanation: 'Plan is temporarily paused. Monthly savings commitments and allocation pressure are on hold.',
+        requiredMonthlySavings: 0,
+        monthsRemaining: 0,
+        varianceMonthly: 0,
+        projectedCompletionDate: null,
+        projectedMonths: 0,
+        milestones,
+        isPaused: true,
+      };
+    }
+
+    const now = new Date();
+    let elapsedMonthsFromStart: number | undefined;
+    let expectedContributionToDate: number | undefined;
+    let startPacingVariance: number | undefined;
+
+    // Explicit Start Date Evaluation
+    if (plan.startDate) {
+      const start = new Date(plan.startDate);
+      const diffMonths = (start.getFullYear() - now.getFullYear()) * 12 + (start.getMonth() - now.getMonth());
+      if (diffMonths > 0) {
+        // Future start date -> Scheduled / Upcoming
+        return {
+          status: 'upcoming',
+          statusTitle: 'Upcoming',
+          statusBadgeColor: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800',
+          explanation: `Scheduled to start in ${diffMonths} ${diffMonths === 1 ? 'month' : 'months'}. Monthly allocation pressure is deferred until start date.`,
+          requiredMonthlySavings: plan.plannedMonthlyAmount || 0,
+          monthsRemaining: plan.targetDate
+            ? Math.max(1, (new Date(plan.targetDate).getFullYear() - start.getFullYear()) * 12 + (new Date(plan.targetDate).getMonth() - start.getMonth()))
+            : 12,
+          varianceMonthly: 0,
+          projectedCompletionDate: plan.targetDate || null,
+          projectedMonths: 0,
+          milestones,
+          isUpcoming: true,
+        };
+      } else {
+        // Past or current start date
+        elapsedMonthsFromStart = Math.max(0, -diffMonths);
+        expectedContributionToDate = (elapsedMonthsFromStart + 1) * (plan.plannedMonthlyAmount || 0);
+        startPacingVariance = (plan.allocatedAmount || 0) - expectedContributionToDate;
+      }
+    }
+
     // No target deadline set
     if (!plan.targetDate) {
       const projectedMonths = effectiveCapacity > 0 ? Math.ceil(remainingAmount / effectiveCapacity) : 12;
@@ -145,6 +196,9 @@ export class FinancialEngine {
           projectedCompletionDate: projDate.toISOString(),
           projectedMonths,
           milestones,
+          expectedContributionToDate,
+          elapsedMonthsFromStart,
+          startPacingVariance,
         };
       } else {
         return {
@@ -158,12 +212,14 @@ export class FinancialEngine {
           projectedCompletionDate: projDate.toISOString(),
           projectedMonths,
           milestones,
+          expectedContributionToDate,
+          elapsedMonthsFromStart,
+          startPacingVariance,
         };
       }
     }
 
     // Target Date Provided
-    const now = new Date();
     const target = new Date(plan.targetDate);
     const monthsDiff = (target.getFullYear() - now.getFullYear()) * 12 + (target.getMonth() - now.getMonth());
     const monthsRemaining = Math.max(1, monthsDiff);
@@ -191,6 +247,9 @@ export class FinancialEngine {
         projectedCompletionDate: projDate.toISOString(),
         projectedMonths,
         milestones,
+        expectedContributionToDate,
+        elapsedMonthsFromStart,
+        startPacingVariance,
       };
     } else if (plan.plannedMonthlyAmount >= requiredMonthlySavings || (effectiveCapacity >= requiredMonthlySavings && Math.abs(varianceMonthly) < requiredMonthlySavings * 0.15)) {
       return {
@@ -204,6 +263,9 @@ export class FinancialEngine {
         projectedCompletionDate: projDate.toISOString(),
         projectedMonths,
         milestones,
+        expectedContributionToDate,
+        elapsedMonthsFromStart,
+        startPacingVariance,
       };
     } else if (effectiveCapacity >= requiredMonthlySavings * 0.7 || plan.plannedMonthlyAmount >= requiredMonthlySavings * 0.75) {
       const shortfallMonthly = requiredMonthlySavings - (plan.plannedMonthlyAmount || effectiveCapacity);
@@ -219,6 +281,9 @@ export class FinancialEngine {
         projectedCompletionDate: projDate.toISOString(),
         projectedMonths,
         milestones,
+        expectedContributionToDate,
+        elapsedMonthsFromStart,
+        startPacingVariance,
       };
     } else if (effectiveCapacity > 0 && requiredMonthlySavings > effectiveCapacity * 2) {
       const extensionMonths = Math.max(1, projectedMonths - monthsRemaining);
@@ -235,6 +300,9 @@ export class FinancialEngine {
         projectedCompletionDate: projDate.toISOString(),
         projectedMonths,
         milestones,
+        expectedContributionToDate,
+        elapsedMonthsFromStart,
+        startPacingVariance,
       };
     } else {
       const shortfallMonthly = requiredMonthlySavings - (plan.plannedMonthlyAmount || effectiveCapacity);
@@ -252,6 +320,9 @@ export class FinancialEngine {
         projectedCompletionDate: projDate.toISOString(),
         projectedMonths,
         milestones,
+        expectedContributionToDate,
+        elapsedMonthsFromStart,
+        startPacingVariance,
       };
     }
   }
@@ -273,7 +344,17 @@ export class FinancialEngine {
     const monthlyExpenses = this.monthlyExpenses(transactions);
     const monthlyCapacity = Math.max(0, monthlyIncome - monthlyExpenses);
 
-    const activePlans = plans.filter(p => !p.isCompleted);
+    const now = new Date();
+    // Exclude completed plans, paused plans, and future/upcoming scheduled plans
+    const activePlans = plans.filter(p => {
+      if (p.isCompleted || p.isPaused) return false;
+      if (p.startDate) {
+        const s = new Date(p.startDate);
+        const diffMonths = (s.getFullYear() - now.getFullYear()) * 12 + (s.getMonth() - now.getMonth());
+        if (diffMonths > 0) return false;
+      }
+      return true;
+    });
     const totalPlannedMonthlyCommitment = activePlans.reduce(
       (sum, p) => sum + (p.plannedMonthlyAmount || 0),
       0

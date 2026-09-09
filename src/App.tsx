@@ -99,7 +99,19 @@ function FinanceAppMain() {
   };
 
   const handleDeleteTransaction = (id: string) => {
-    setTransactions(prev => prev.filter(t => t.id !== id));
+    setTransactions(prev => {
+      const next = prev.filter(t => t.id !== id);
+      StorageService.saveTransactions(next);
+      return next;
+    });
+  };
+
+  const handleDeleteTransactionsBatch = (ids: string[]) => {
+    setTransactions(prev => {
+      const next = prev.filter(t => !ids.includes(t.id));
+      StorageService.saveTransactions(next);
+      return next;
+    });
   };
 
   // Unified Financial Plans Actions
@@ -132,6 +144,17 @@ function FinanceAppMain() {
       return next;
     });
     if (detailPlan && detailPlan.id === planId) {
+      setDetailPlan(null);
+    }
+  };
+
+  const handleDeletePlansBatch = (ids: string[]) => {
+    setPlans(prev => {
+      const next = prev.filter(p => !ids.includes(p.id));
+      StorageService.savePlans(next);
+      return next;
+    });
+    if (detailPlan && ids.includes(detailPlan.id)) {
       setDetailPlan(null);
     }
   };
@@ -279,6 +302,7 @@ function FinanceAppMain() {
                   onOpenAllocate={plan => setAllocatingPlan(plan)}
                   onOpenDetail={plan => setDetailPlan(plan)}
                   onDeletePlan={handleDeletePlan}
+                  onDeletePlansBatch={handleDeletePlansBatch}
                   onNavigateTab={tabIndex => setActiveTab(tabIndex)}
                 />
               )}
@@ -290,6 +314,7 @@ function FinanceAppMain() {
                   onOpenAdd={() => setIsAddOpen(true)}
                   onEditTransaction={item => setEditingTransaction(item)}
                   onDeleteTransaction={id => handleDeleteTransaction(id)}
+                  onDeleteTransactionsBatch={handleDeleteTransactionsBatch}
                 />
               )}
 
@@ -367,8 +392,10 @@ function FinanceAppMain() {
       {detailPlan && (
         <PlanDetailSheet
           goal={detailPlan}
+          plan={detailPlan}
           transactions={transactions}
           allGoals={plans}
+          allPlans={plans}
           onClose={() => setDetailPlan(null)}
           onOpenAllocate={() => {
             setAllocatingPlan(detailPlan);
@@ -376,6 +403,8 @@ function FinanceAppMain() {
           }}
           onToggleComplete={() => handleToggleCompletePlan(detailPlan.id)}
           onDeleteGoal={() => handleDeletePlan(detailPlan.id)}
+          onDeletePlan={() => handleDeletePlan(detailPlan.id)}
+          onUpdatePlan={handleUpdatePlan}
         />
       )}
 

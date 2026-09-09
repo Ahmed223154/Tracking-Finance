@@ -1,7 +1,7 @@
 import React from 'react';
 import { PlanItem, PlanPriority } from '../../../types/finance';
 import { FinancialEngine } from '../../../services/financialEngine';
-import { Coins, Clock, Calendar, Trash2 } from 'lucide-react';
+import { Coins, Clock, Calendar, Trash2, Check } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { useLongPress } from '../../../hooks/useLongPress';
 
@@ -14,6 +14,10 @@ interface PlanCardItemProps {
   onOpenDetail: (plan: PlanItem) => void;
   onOpenAllocate: (plan: PlanItem) => void;
   onRequestDelete: (plan: PlanItem) => void;
+  isSelectMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
+  onLongPressSelect?: () => void;
 }
 
 export const PlanCardItem: React.FC<PlanCardItemProps> = ({
@@ -25,6 +29,10 @@ export const PlanCardItem: React.FC<PlanCardItemProps> = ({
   onOpenDetail,
   onOpenAllocate,
   onRequestDelete,
+  isSelectMode,
+  isSelected,
+  onToggleSelect,
+  onLongPressSelect,
 }) => {
   const { t, language, formatCurrency } = useI18n();
 
@@ -44,10 +52,18 @@ export const PlanCardItem: React.FC<PlanCardItemProps> = ({
 
   const longPressProps = useLongPress(
     () => {
-      onRequestDelete(plan);
+      if (onLongPressSelect) {
+        onLongPressSelect();
+      } else {
+        onRequestDelete(plan);
+      }
     },
     () => {
-      onOpenDetail(plan);
+      if (isSelectMode && onToggleSelect) {
+        onToggleSelect();
+      } else {
+        onOpenDetail(plan);
+      }
     },
     { delay: 500 }
   );
@@ -71,54 +87,80 @@ export const PlanCardItem: React.FC<PlanCardItemProps> = ({
   return (
     <div
       {...longPressProps}
-      className="group rounded-[28px] border border-[#E5E5EA] bg-white p-5 shadow-sm transition-all hover:border-[#007AFF]/40 dark:border-[#3A3A3C] dark:bg-[#2C2C2E] space-y-3 select-none cursor-pointer active:scale-[0.99]"
+      className={`group rounded-[28px] border bg-white p-5 shadow-sm transition-all dark:bg-[#2C2C2E] space-y-3 select-none cursor-pointer active:scale-[0.99] ${
+        isSelected
+          ? 'border-[#007AFF] bg-blue-50/50 dark:bg-blue-950/20 dark:border-blue-500'
+          : 'border-[#E5E5EA] hover:border-[#007AFF]/40 dark:border-[#3A3A3C]'
+      }`}
     >
       {/* Card Top: Priority, Status, Title, Quick Actions */}
       <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span
-              className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border ${priBadge.badge}`}
+        <div className="flex items-start gap-2.5 flex-1 min-w-0">
+          {isSelectMode && (
+            <div
+              onClick={e => {
+                e.stopPropagation();
+                if (onToggleSelect) onToggleSelect();
+              }}
+              className="mt-1 cursor-pointer p-0.5 shrink-0"
             >
-              {language === 'ar' ? priBadge.labelAr : priBadge.labelEn}
-            </span>
-            <span
-              className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${analysis.statusBadgeColor}`}
-            >
-              {analysis.statusTitle}
-            </span>
+              {isSelected ? (
+                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#007AFF] text-white shadow-sm">
+                  <Check className="h-3.5 w-3.5 stroke-[3]" />
+                </div>
+              ) : (
+                <div className="h-5 w-5 rounded-full border-2 border-[#C7C7CC] dark:border-[#545458]" />
+              )}
+            </div>
+          )}
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span
+                className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border ${priBadge.badge}`}
+              >
+                {language === 'ar' ? priBadge.labelAr : priBadge.labelEn}
+              </span>
+              <span
+                className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${analysis.statusBadgeColor}`}
+              >
+                {analysis.statusTitle}
+              </span>
+            </div>
+            <h4 className="mt-1 font-bold text-base text-[#1C1C1E] dark:text-white truncate">
+              {plan.name}
+            </h4>
           </div>
-          <h4 className="mt-1 font-bold text-base text-[#1C1C1E] dark:text-white truncate">
-            {plan.name}
-          </h4>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenAllocate(plan);
-            }}
-            className="flex items-center gap-1 rounded-xl bg-blue-50 px-2.5 py-1.5 text-xs font-bold text-[#007AFF] hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/50 transition-colors"
-            title={t.allocateFundsBtn}
-          >
-            <Coins className="h-3.5 w-3.5" />
-            <span className="hidden xs:inline">{t.allocateFundsBtn}</span>
-          </button>
+        {!isSelectMode && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenAllocate(plan);
+              }}
+              className="flex items-center gap-1 rounded-xl bg-blue-50 px-2.5 py-1.5 text-xs font-bold text-[#007AFF] hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/50 transition-colors"
+              title={t.allocateFundsBtn}
+            >
+              <Coins className="h-3.5 w-3.5" />
+              <span className="hidden xs:inline">{t.allocateFundsBtn}</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRequestDelete(plan);
-            }}
-            className="rounded-xl p-1.5 text-[#C7C7CC] hover:bg-red-50 hover:text-[#FF3B30] dark:text-[#8E8E93] dark:hover:bg-red-950/40 dark:hover:text-[#FF3B30] transition-colors"
-            title={t.delete}
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRequestDelete(plan);
+              }}
+              className="rounded-xl p-1.5 text-[#C7C7CC] hover:bg-red-50 hover:text-[#FF3B30] dark:text-[#8E8E93] dark:hover:bg-red-950/40 dark:hover:text-[#FF3B30] transition-colors"
+              title={t.delete}
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Progress Bar & Amounts */}

@@ -125,12 +125,13 @@ export const INITIAL_PLANS: PlanItem[] = [
     targetAmount: 8000000,
     allocatedAmount: 4500000,
     currency: 'IQD',
+    startDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
     targetDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString(),
     priority: 'critical',
     plannedMonthlyAmount: 600000,
     planDescription: '6 months of essential living expenses cash cushion',
     isCompleted: false,
-    createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date().toISOString(),
     completedAt: null,
   },
@@ -140,12 +141,13 @@ export const INITIAL_PLANS: PlanItem[] = [
     targetAmount: 18000000,
     allocatedAmount: 6500000,
     currency: 'IQD',
+    startDate: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString(),
     targetDate: new Date(Date.now() + 300 * 24 * 60 * 60 * 1000).toISOString(),
     priority: 'high',
     plannedMonthlyAmount: 1150000,
     planDescription: 'Down payment for a reliable Toyota RAV4 or Prado',
     isCompleted: false,
-    createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date().toISOString(),
     completedAt: null,
   },
@@ -155,12 +157,13 @@ export const INITIAL_PLANS: PlanItem[] = [
     targetAmount: 4000000,
     allocatedAmount: 4000000,
     currency: 'IQD',
+    startDate: new Date(Date.now() - 150 * 24 * 60 * 60 * 1000).toISOString(),
     targetDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     priority: 'medium',
     plannedMonthlyAmount: 400000,
     planDescription: 'Flights and hotel accommodation',
     isCompleted: true,
-    createdAt: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 150 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date().toISOString(),
     completedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
   },
@@ -220,6 +223,14 @@ export class StorageService {
     return updated;
   }
 
+  static deleteTransactionsBatch(ids: string[]): TransactionItem[] {
+    const idSet = new Set(ids);
+    const current = this.loadTransactions();
+    const updated = current.filter(t => !idSet.has(t.id));
+    this.saveTransactions(updated);
+    return updated;
+  }
+
   static loadPlans(): PlanItem[] {
     try {
       const plansData = localStorage.getItem(STORAGE_KEYS.PLANS);
@@ -254,6 +265,14 @@ export class StorageService {
   static deletePlan(id: string): PlanItem[] {
     const current = this.loadPlans();
     const updated = current.filter(p => p.id !== id);
+    this.savePlans(updated);
+    return updated;
+  }
+
+  static deletePlansBatch(ids: string[]): PlanItem[] {
+    const idSet = new Set(ids);
+    const current = this.loadPlans();
+    const updated = current.filter(p => !idSet.has(p.id));
     this.savePlans(updated);
     return updated;
   }

@@ -19,6 +19,10 @@ import {
   ShieldAlert,
   ArrowRight,
   Trash2,
+  CheckSquare,
+  Square,
+  Check,
+  X,
 } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { PlanCardItem } from '../plans/PlanCardItem';
@@ -31,6 +35,7 @@ interface PlansTabProps {
   onOpenAllocate: (plan: PlanItem) => void;
   onOpenDetail: (plan: PlanItem) => void;
   onDeletePlan?: (id: string) => void;
+  onDeletePlansBatch?: (ids: string[]) => void;
   initialSubTab?: 'dashboard' | 'plans' | 'whatif';
   onNavigateTab?: (tabIndex: number) => void;
 }
@@ -42,12 +47,18 @@ export const PlansTab: React.FC<PlansTabProps> = ({
   onOpenAllocate,
   onOpenDetail,
   onDeletePlan,
+  onDeletePlansBatch,
   initialSubTab = 'dashboard',
   onNavigateTab,
 }) => {
   const { t, language, formatCurrency } = useI18n();
   const [subTab, setSubTab] = useState<'dashboard' | 'plans' | 'whatif'>(initialSubTab);
   const [confirmDeletePlan, setConfirmDeletePlan] = useState<PlanItem | null>(null);
+
+  // Batch selection state for plans
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
   useEffect(() => {
     if (initialSubTab) {
@@ -96,6 +107,56 @@ export const PlansTab: React.FC<PlansTabProps> = ({
       color: 'text-gray-600 dark:text-gray-400',
       badge: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border-gray-300',
     },
+  };
+
+  // Batch selection helpers
+  const handleToggleSelectPlan = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleLongPressSelectPlan = (id: string) => {
+    if (!isSelectMode) {
+      setIsSelectMode(true);
+      setSelectedIds(new Set([id]));
+    } else {
+      handleToggleSelectPlan(id);
+    }
+  };
+
+  const areAllPlansSelected = plans.length > 0 && plans.every(p => selectedIds.has(p.id));
+  const handleToggleSelectAllPlans = () => {
+    if (areAllPlansSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(plans.map(p => p.id)));
+    }
+  };
+
+  const handleExitSelectMode = () => {
+    setIsSelectMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const handleExecuteBulkDeletePlans = () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+
+    if (onDeletePlansBatch) {
+      onDeletePlansBatch(ids);
+    } else if (onDeletePlan) {
+      ids.forEach(id => onDeletePlan(id));
+    }
+
+    setConfirmBulkDelete(false);
+    handleExitSelectMode();
   };
 
   return (
@@ -345,7 +406,84 @@ export const PlansTab: React.FC<PlansTabProps> = ({
               <h3 className="text-xs font-bold uppercase tracking-wider text-[#8E8E93]">
                 {t.activePlansSection} ({activePlans.length})
               </h3>
+
+              {plans.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isSelectMode) {
+                      handleExitSelectMode();
+                    } else {
+                      setIsSelectMode(true);
+                    }
+                  }}
+                  className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold shadow-sm transition-all ${
+                    isSelectMode
+                      ? 'bg-[#007AFF] text-white hover:bg-[#0062CC]'
+                      : 'border border-[#E5E5EA] bg-white text-[#3A3A3C] hover:bg-[#F2F2F7] dark:border-[#3A3A3C] dark:bg-[#2C2C2E] dark:text-white'
+                  }`}
+                >
+                  <CheckSquare className="h-3.5 w-3.5" />
+                  <span>
+                    {isSelectMode
+                      ? (language === 'ar' ? 'إلغاء' : 'Done')
+                      : (language === 'ar' ? 'تحديد' : 'Select')}
+                  </span>
+                </button>
+              )}
             </div>
+
+            {/* Multi-Select Action Bar (Active in Select Mode) */}
+            {isSelectMode && (
+              <div className="flex items-center justify-between rounded-2xl border border-blue-200 bg-blue-50/80 px-3.5 py-2.5 dark:border-blue-900/60 dark:bg-blue-950/40 shadow-sm animate-in fade-in duration-150">
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={handleToggleSelectAllPlans}
+                    className="flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 text-xs font-bold text-[#007AFF] shadow-sm hover:bg-blue-50 dark:bg-[#1C1C1E] dark:text-blue-300"
+                  >
+                    {areAllPlansSelected ? (
+                      <>
+                        <CheckSquare className="h-3.5 w-3.5" />
+                        {language === 'ar' ? 'إلغاء تحديد الكل' : 'Deselect All'}
+                      </>
+                    ) : (
+                      <>
+                        <Square className="h-3.5 w-3.5" />
+                        {language === 'ar' ? 'تحديد الكل' : 'Select All'}
+                      </>
+                    )}
+                  </button>
+                  <span className="text-xs font-bold text-[#1C1C1E] dark:text-white">
+                    {selectedIds.size} {language === 'ar' ? 'محدد' : 'selected'}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={selectedIds.size === 0}
+                    onClick={() => setConfirmBulkDelete(true)}
+                    className="flex items-center gap-1.5 rounded-xl bg-[#FF3B30] px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>
+                      {language === 'ar' ? 'حذف المحدد' : 'Delete Selected'}
+                      {selectedIds.size > 0 && ` (${selectedIds.size})`}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleExitSelectMode}
+                    className="rounded-full p-1 text-[#8E8E93] hover:bg-white/50 dark:hover:bg-[#1C1C1E] transition-colors"
+                    title={t.cancel}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )}
 
             {activePlans.length === 0 ? (
               <div className="rounded-[24px] border border-dashed border-[#D1D1D6] p-8 text-center text-xs text-[#8E8E93] dark:border-[#3A3A3C] bg-white dark:bg-[#2C2C2E]">
@@ -371,6 +509,10 @@ export const PlansTab: React.FC<PlansTabProps> = ({
                   onOpenDetail={onOpenDetail}
                   onOpenAllocate={onOpenAllocate}
                   onRequestDelete={p => setConfirmDeletePlan(p)}
+                  isSelectMode={isSelectMode}
+                  isSelected={selectedIds.has(plan.id)}
+                  onToggleSelect={() => handleToggleSelectPlan(plan.id)}
+                  onLongPressSelect={() => handleLongPressSelectPlan(plan.id)}
                 />
               ))
             )}
@@ -386,41 +528,74 @@ export const PlansTab: React.FC<PlansTabProps> = ({
               </div>
 
               <div className="space-y-2">
-                {completedPlans.map(plan => (
-                  <div
-                    key={plan.id}
-                    onClick={() => onOpenDetail(plan)}
-                    className="flex cursor-pointer items-center justify-between rounded-2xl border border-[#E5E5EA] bg-white p-3.5 opacity-80 transition-all hover:opacity-100 dark:border-[#3A3A3C] dark:bg-[#2C2C2E]"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60">
-                        <CheckCircle2 className="h-4 w-4" />
+                {completedPlans.map(plan => {
+                  const isSelected = selectedIds.has(plan.id);
+                  return (
+                    <div
+                      key={plan.id}
+                      onClick={() => {
+                        if (isSelectMode) {
+                          handleToggleSelectPlan(plan.id);
+                        } else {
+                          onOpenDetail(plan);
+                        }
+                      }}
+                      className={`flex cursor-pointer items-center justify-between rounded-2xl border p-3.5 transition-all ${
+                        isSelected
+                          ? 'border-[#007AFF] bg-blue-50/60 dark:bg-blue-950/30'
+                          : 'border-[#E5E5EA] bg-white opacity-80 hover:opacity-100 dark:border-[#3A3A3C] dark:bg-[#2C2C2E]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {isSelectMode ? (
+                          <div
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleToggleSelectPlan(plan.id);
+                            }}
+                            className="p-0.5"
+                          >
+                            {isSelected ? (
+                              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#007AFF] text-white shadow-sm">
+                                <Check className="h-3.5 w-3.5 stroke-[3]" />
+                              </div>
+                            ) : (
+                              <div className="h-5 w-5 rounded-full border-2 border-[#C7C7CC] dark:border-[#545458]" />
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60">
+                            <CheckCircle2 className="h-4 w-4" />
+                          </div>
+                        )}
+                        <div>
+                          <h4 className="font-bold text-xs text-[#1C1C1E] dark:text-white line-through">
+                            {plan.name}
+                          </h4>
+                          <span className="text-[10px] text-[#8E8E93]">
+                            {formatCurrency(plan.targetAmount)} • {language === 'ar' ? 'مكتمل' : 'Completed'}
+                          </span>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="font-bold text-xs text-[#1C1C1E] dark:text-white line-through">
-                          {plan.name}
-                        </h4>
-                        <span className="text-[10px] text-[#8E8E93]">
-                          {formatCurrency(plan.targetAmount)} • {language === 'ar' ? 'مكتمل' : 'Completed'}
-                        </span>
-                      </div>
+                      {!isSelectMode && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmDeletePlan(plan);
+                            }}
+                            className="rounded-lg p-1.5 text-[#C7C7CC] hover:text-[#FF3B30] transition-colors"
+                            title={t.delete}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                          <ChevronRight className="h-4 w-4 text-[#8E8E93]" />
+                        </div>
+                      )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setConfirmDeletePlan(plan);
-                        }}
-                        className="rounded-lg p-1.5 text-[#C7C7CC] hover:text-[#FF3B30] transition-colors"
-                        title={t.delete}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                      <ChevronRight className="h-4 w-4 text-[#8E8E93]" />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -493,6 +668,56 @@ export const PlansTab: React.FC<PlansTabProps> = ({
                 className="flex-1 rounded-xl bg-[#FF3B30] py-2.5 text-xs font-semibold text-white shadow-md shadow-red-500/25 transition-colors hover:bg-red-600"
               >
                 {t.delete}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Plans Confirmation Modal */}
+      {confirmBulkDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-xs rounded-[28px] bg-white p-6 text-center shadow-2xl dark:bg-[#2C2C2E] border border-[#E5E5EA] dark:border-[#3A3A3C] space-y-3">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 text-[#FF3B30] dark:bg-rose-950/40">
+              <Trash2 className="h-6 w-6" />
+            </div>
+
+            <h3 className="font-bold text-base text-[#1C1C1E] dark:text-white">
+              {language === 'ar' ? 'حذف الخطط المحددة؟' : 'Delete Selected Plans?'}
+            </h3>
+
+            <p className="text-xs text-[#8E8E93] leading-relaxed">
+              {language === 'ar' ? (
+                <>
+                  هل أنت متأكد من رغبتك في حذف <strong className="text-[#1C1C1E] dark:text-white">{selectedIds.size}</strong> خطط مالية؟
+                  <span className="block mt-1 text-[#34C759] font-bold">
+                    سيتم إعادة أي مبالغ مخصصة تلقائياً إلى رصيدك المتاح، وتحديث خططك والتحليلات فوراً.
+                  </span>
+                </>
+              ) : (
+                <>
+                  Are you sure you want to delete <strong className="text-[#1C1C1E] dark:text-white">{selectedIds.size}</strong> plans?
+                  <span className="block mt-1 text-[#34C759] font-bold">
+                    Any allocated amounts will be safely restored to your available funds immediately.
+                  </span>
+                </>
+              )}
+            </p>
+
+            <div className="mt-4 flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmBulkDelete(false)}
+                className="flex-1 rounded-xl bg-[#F2F2F7] py-2.5 text-xs font-semibold text-[#8E8E93] transition-colors hover:bg-[#E5E5EA] dark:bg-[#38383A] dark:text-[#D1D1D6]"
+              >
+                {t.cancel}
+              </button>
+              <button
+                type="button"
+                onClick={handleExecuteBulkDeletePlans}
+                className="flex-1 rounded-xl bg-[#FF3B30] py-2.5 text-xs font-semibold text-white shadow-md shadow-red-500/25 transition-colors hover:bg-red-600"
+              >
+                {language === 'ar' ? `حذف (${selectedIds.size})` : `Delete (${selectedIds.size})`}
               </button>
             </div>
           </div>

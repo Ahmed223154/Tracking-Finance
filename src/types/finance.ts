@@ -22,7 +22,9 @@ export type PlanStatus =
   | 'atRisk'
   | 'behind'
   | 'notFeasible'
-  | 'completed';
+  | 'completed'
+  | 'paused'
+  | 'upcoming';
 
 export interface PlanItem {
   id: string;
@@ -30,11 +32,14 @@ export interface PlanItem {
   targetAmount: number;
   allocatedAmount: number;
   currency: string;
+  startDate?: string | null; // ISO string or YYYY-MM-DD
   targetDate: string | null; // ISO string or null
   priority: PlanPriority;
   plannedMonthlyAmount: number; // Target monthly savings commitment
   planDescription: string;
   isCompleted: boolean;
+  isPaused?: boolean; // Plan Lifecycle: Postpone / Pause
+  pausedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;
@@ -86,6 +91,11 @@ export interface PlanAnalysis {
   milestones: PlanMilestones;
   shortfallMonthly?: number;
   extensionMonths?: number;
+  isPaused?: boolean;
+  isUpcoming?: boolean;
+  expectedContributionToDate?: number;
+  elapsedMonthsFromStart?: number;
+  startPacingVariance?: number;
 }
 
 // Backwards compatibility alias
