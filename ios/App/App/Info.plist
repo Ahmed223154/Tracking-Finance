@@ -95,7 +95,7 @@
 			<key>UIApplicationShortcutItemType</key>
 			<string>com.ahmedalkubaisy.finance.plans-dashboard</string>
 			<key>UIApplicationShortcutItemTitle</key>
-			<string>Plans Status</string>
+			<string>Plans Overview</string>
 			<key>UIApplicationShortcutItemSubtitle</key>
 			<string>View target progress</string>
 			<key>UIApplicationShortcutItemIconType</key>
@@ -103,7 +103,7 @@
 			<key>UIApplicationShortcutItemUserInfo</key>
 			<dict>
 				<key>url</key>
-				<string>myapp://plans-dashboard</string>
+				<string>myapp://plans</string>
 			</dict>
 		</dict>
 	</array>

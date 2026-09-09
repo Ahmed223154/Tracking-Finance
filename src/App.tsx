@@ -21,11 +21,10 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { CodeExplorer } from './components/code-hub/CodeExplorer';
 import { DeployGuide } from './components/code-hub/DeployGuide';
 import { FinancialEngine } from './services/financialEngine';
-import { Smartphone, FileCode2, BookOpen, ShieldCheck, LayoutGrid, Zap } from 'lucide-react';
+import { Smartphone, FileCode2, BookOpen, ShieldCheck } from 'lucide-react';
 import { useI18n, I18nProvider, I18nContext, defaultI18nContext } from './context/I18nContext';
 import { WidgetBridge } from './services/widgetBridge';
 import { DeepLinkService } from './services/deepLinkService';
-import { IOSWidgetsHubModal } from './components/simulator/widgets/IOSWidgetsHubModal';
 
 function FinanceAppMain() {
   const { t, language } = useI18n();
@@ -42,10 +41,9 @@ function FinanceAppMain() {
   const [biometricsEnabled, setBiometricsEnabled] = useState<boolean>(() => StorageService.getBiometrics());
   const [theme, setTheme] = useState<string>(() => StorageService.getTheme());
 
-  // Modal sheets & iOS Widget Hub
+  // Modal sheets
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [addInitialType, setAddInitialType] = useState<'expense' | 'income'>('expense');
-  const [isWidgetsModalOpen, setIsWidgetsModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<TransactionItem | null>(null);
   const [allocatingPlan, setAllocatingPlan] = useState<PlanItem | null>(null);
   const [detailPlan, setDetailPlan] = useState<PlanItem | null>(null);
@@ -304,16 +302,6 @@ function FinanceAppMain() {
               </button>
             </div>
 
-            {/* iOS Widgets & Quick Actions Launcher */}
-            <button
-              onClick={() => setIsWidgetsModalOpen(true)}
-              className="flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50/80 px-2.5 py-1 text-xs font-semibold text-[#007AFF] shadow-xs hover:bg-blue-100 transition-all dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-300"
-              title="iOS Home Screen Widgets & 3D Touch Quick Actions"
-            >
-              <LayoutGrid className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">{language === 'ar' ? 'الويدجت واختصارات iOS' : 'iOS Widgets'}</span>
-            </button>
-
             {/* Primary Action Button */}
             <button
               onClick={() => {
@@ -348,7 +336,6 @@ function FinanceAppMain() {
                   }}
                   onNavigateTab={tabIndex => setActiveTab(tabIndex)}
                   onSelectGoal={plan => setDetailPlan(plan)}
-                  onOpenWidgetsHub={() => setIsWidgetsModalOpen(true)}
                 />
               )}
 
@@ -398,7 +385,6 @@ function FinanceAppMain() {
                   theme={theme}
                   onChangeTheme={t => setTheme(t)}
                   onTriggerFaceID={() => setIsFaceIDOpen(true)}
-                  onOpenWidgetsHub={() => setIsWidgetsModalOpen(true)}
                 />
               )}
             </IPhoneFrame>
@@ -418,18 +404,6 @@ function FinanceAppMain() {
           onClose={() => setIsAddOpen(false)}
           onSave={handleAddTransaction}
           onAddCategory={handleAddCategory}
-        />
-      )}
-
-      {/* iOS Widgets & Quick Actions Hub Modal */}
-      {isWidgetsModalOpen && (
-        <IOSWidgetsHubModal
-          transactions={transactions}
-          plans={plans}
-          unallocatedBalance={unallocatedBalance}
-          monthlyCapacity={FinancialEngine.historicalMonthlyAverageSavings(transactions)}
-          onClose={() => setIsWidgetsModalOpen(false)}
-          onDeepLinkTriggered={url => DeepLinkService.triggerDeepLink(url)}
         />
       )}
 

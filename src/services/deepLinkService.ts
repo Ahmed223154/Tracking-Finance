@@ -138,6 +138,17 @@ export class DeepLinkService {
       }
     }) as EventListener);
 
+    window.addEventListener('quickAction', ((e: CustomEvent<{ type?: string; shortcutType?: string }>) => {
+      const type = e.detail?.shortcutType || e.detail?.type;
+      if (type === 'add_expense') {
+        this.triggerDeepLink('myapp://add-expense');
+      } else if (type === 'add_income') {
+        this.triggerDeepLink('myapp://add-income');
+      } else if (type === 'plans_overview') {
+        this.triggerDeepLink('myapp://plans');
+      }
+    }) as EventListener);
+
     // 3. Check current window.location query/hash on boot
     const checkCurrentLocation = () => {
       const fullUrl = window.location.href;
