@@ -74,6 +74,8 @@ jobs:
             -framework UIKit \
             -emit-executable \
             -parse-as-library \
+            -Xlinker -rpath -Xlinker @executable_path/Frameworks \
+            -Xlinker -rpath -Xlinker @executable_path/../../Frameworks \
             ios/App/FinanceWidget/FinanceWidget.swift \
             -o "$PLUGINS_DIR/FinanceWidget"
 
