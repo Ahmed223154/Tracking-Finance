@@ -10,5 +10,7 @@
 		"contentInset": "always",
 		"scrollEnabled": true
 	},
-	"packageClassList": []
+	"packageClassList": [
+		"AppPlugin"
+	]
 }

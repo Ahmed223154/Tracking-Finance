@@ -29,5 +29,28 @@
       "type": "image/png",
       "purpose": "maskable"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Add Expense",
+      "short_name": "+ Expense",
+      "description": "Log new expense transaction immediately",
+      "url": "/?action=add-expense",
+      "icons": [{ "src": "/pwa-192x192.png?v=2.1.0", "sizes": "192x192" }]
+    },
+    {
+      "name": "Add Income",
+      "short_name": "+ Income",
+      "description": "Log new income deposit immediately",
+      "url": "/?action=add-income",
+      "icons": [{ "src": "/pwa-192x192.png?v=2.1.0", "sizes": "192x192" }]
+    },
+    {
+      "name": "Plans Status",
+      "short_name": "Plans",
+      "description": "Open Plans Dashboard directly",
+      "url": "/?action=plans-dashboard",
+      "icons": [{ "src": "/pwa-192x192.png?v=2.1.0", "sizes": "192x192" }]
+    }
   ]
 }

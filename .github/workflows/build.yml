@@ -3,6 +3,8 @@ name: Build & Package iOS .ipa
 on:
   push:
     branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
@@ -16,34 +18,37 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
+          cache: 'npm'
 
-      - name: Install Node Dependencies
-        run: npm install
+      - name: Install Dependencies
+        run: npm ci
 
-      - name: Compile Frontend to dist/
+      - name: Build Web App
         run: npm run build
 
-      - name: Sync Web Assets to Native iOS Project
+      - name: Sync iOS Project
         run: npx cap sync ios
 
+      - name: CocoaPods Install
+        working-directory: ios/App
+        run: pod install --repo-update
+
       - name: Select Xcode Version
-        run: sudo xcode-select -switch /Applications/Xcode_15.4.app
+        run: |
+          if [ -d "/Applications/Xcode_15.4.app" ]; then
+            sudo xcode-select -switch /Applications/Xcode_15.4.app
+          fi
+          xcodebuild -version
 
       - name: Build Xcode Archive (.xcarchive)
         run: |
-          if [ -d "ios/App/App.xcworkspace" ]; then
-            BUILD_TARGET="-workspace ios/App/App.xcworkspace"
-          else
-            BUILD_TARGET="-project ios/App/App.xcodeproj"
-          fi
-
           xcodebuild archive \
-            $BUILD_TARGET \
+            -workspace ios/App/App.xcworkspace \
             -scheme App \
             -configuration Release \
-            -archivePath build/App.xcarchive \
             -destination 'generic/platform=iOS' \
+            -archivePath build/App.xcarchive \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY=""
