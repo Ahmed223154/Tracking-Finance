@@ -16,11 +16,13 @@ import goalsViewCode from '../../swiftpm/Sources/Views/GoalsView.swift?raw';
 import budgetsViewCode from '../../swiftpm/Sources/Views/BudgetsView.swift?raw';
 import settingsViewCode from '../../swiftpm/Sources/Views/SettingsView.swift?raw';
 import readmeCode from '../../swiftpm/README.md?raw';
+import financeWidgetCode from '../../ios/App/FinanceWidget/FinanceWidget.swift?raw';
+import addExpenseIntentCode from '../../ios/App/FinanceWidget/AddExpenseIntent.swift?raw';
 
 export interface SwiftFile {
   path: string;
   name: string;
-  category: 'manifest' | 'core' | 'views' | 'bundle' | 'docs';
+  category: 'manifest' | 'core' | 'views' | 'bundle' | 'docs' | 'widget';
   description: string;
   code: string;
 }
@@ -130,6 +132,20 @@ export const SWIFT_FILES: SwiftFile[] = [
     category: 'views',
     description: 'Settings, Face ID toggle, CSV/JSON export & category management',
     code: settingsViewCode,
+  },
+  {
+    path: 'FinanceWidget/FinanceWidget.swift',
+    name: 'FinanceWidget.swift',
+    category: 'widget',
+    description: 'iOS WidgetKit extension with 4 display modes & App Group sync bridge',
+    code: financeWidgetCode,
+  },
+  {
+    path: 'FinanceWidget/AddExpenseIntent.swift',
+    name: 'AddExpenseIntent.swift',
+    category: 'widget',
+    description: 'Interactive AppIntents for instant zero-launch expense and income logging',
+    code: addExpenseIntentCode,
   },
   {
     path: 'README.md',

@@ -95,6 +95,11 @@ export const CodeExplorer: React.FC = () => {
                             All-in-1
                           </span>
                         )}
+                        {file.category === 'widget' && (
+                          <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-extrabold ${isSelected ? 'bg-white/20 text-white' : 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'}`}>
+                            WidgetKit
+                          </span>
+                        )}
                       </div>
                       <div className={`text-[10px] truncate ${isSelected ? 'text-white/80' : 'text-[#8E8E93]'}`}>
                         {file.description}
