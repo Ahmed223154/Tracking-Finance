@@ -8,6 +8,7 @@
 
 import WidgetKit
 import SwiftUI
+import UIKit
 
 // MARK: - Shared Data Models
 
@@ -481,8 +482,8 @@ public struct PlansTrackerWidgetEntryView: View {
 
 // MARK: - Widget Configurations
 
-public struct QuickLogWidget: Widget {
-    public let kind: String = "QuickLogWidget"
+public struct FinanceQuickLogWidget: Widget {
+    public let kind: String = "FinanceQuickLogWidget"
 
     public init() {}
 
@@ -496,8 +497,8 @@ public struct QuickLogWidget: Widget {
     }
 }
 
-public struct PlansTrackerWidget: Widget {
-    public let kind: String = "PlansTrackerWidget"
+public struct FinancePlansTrackerWidget: Widget {
+    public let kind: String = "FinancePlansTrackerWidget"
 
     public init() {}
 
@@ -516,8 +517,8 @@ public struct PlansTrackerWidget: Widget {
 @main
 struct FinanceWidgetBundle: WidgetBundle {
     var body: some Widget {
-        QuickLogWidget()
-        PlansTrackerWidget()
+        FinanceQuickLogWidget()
+        FinancePlansTrackerWidget()
     }
 }
 

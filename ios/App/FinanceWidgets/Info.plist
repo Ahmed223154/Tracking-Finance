@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>FinanceApp</string>
+	<string>Finance Widget</string>
 	<key>CFBundleExecutable</key>
 	<string>FinanceWidget</string>
 	<key>CFBundleIdentifier</key>

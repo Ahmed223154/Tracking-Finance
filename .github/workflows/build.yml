@@ -79,6 +79,9 @@ jobs:
             ios/App/FinanceWidget/FinanceWidget.swift \
             -o "$PLUGINS_DIR/FinanceWidget"
 
+          # 3. Ad-hoc codesign the extension bundle for on-device resigning tools (SideStore / AltStore)
+          codesign --force --sign - "$PLUGINS_DIR"
+
           echo "Listing FinanceWidget.appex contents:"
           ls -la "$PLUGINS_DIR"
 
@@ -86,7 +89,8 @@ jobs:
         run: |
           mkdir -p Payload
           cp -r derived_data/Build/Products/Release-iphoneos/App.app Payload/
-          echo "Verifying Payload structure:"
+          # Verify PlugIns directory exists inside App.app
+          ls -la Payload/App.app/PlugIns/ || echo "Warning: PlugIns folder missing!"
           ls -la Payload/App.app/PlugIns/FinanceWidget.appex
           zip -r App.ipa Payload
 
