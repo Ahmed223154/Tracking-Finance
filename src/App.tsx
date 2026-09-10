@@ -24,7 +24,7 @@ import { DeployGuide } from './components/code-hub/DeployGuide';
 import { FinancialEngine } from './services/financialEngine';
 import { Smartphone, FileCode2, BookOpen, ShieldCheck } from 'lucide-react';
 import { useI18n, I18nProvider, I18nContext, defaultI18nContext } from './context/I18nContext';
-import { WidgetBridge, syncWidgetData } from './services/widgetBridge';
+import { WidgetBridge, syncWidgetData, updateWidgetData } from './services/widgetBridge';
 import { DeepLinkService } from './services/deepLinkService';
 
 function FinanceAppMain() {

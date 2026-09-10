@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { CategoryItem, TransactionItem } from '../types/finance';
-import { X, Check, ArrowDownCircle, ArrowUpCircle, Delete, Sparkles, Tag } from 'lucide-react';
+import { X, Check, ArrowDownCircle, ArrowUpCircle, Sparkles, Tag } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
-import { minimizeApp } from '../services/widgetBridge';
+import { exitToHomeScreen } from '../services/widgetBridge';
 
 export interface QuickAddPopupProps {
   isOpen: boolean;
@@ -20,7 +20,6 @@ export const normalizeDigits = (str: string): string => {
   return str.replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d).toString());
 };
 
-// Common fast-tap memo tags to completely eliminate any need for native text input fields
 const QUICK_EXPENSE_TAGS = [
   '🍽️ Lunch / Food',
   '🚕 Taxi / Fuel',
@@ -50,9 +49,11 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
 }) => {
   const { language } = useI18n();
   const [type, setType] = useState<'expense' | 'income'>(initialType);
-  const [rawDigits, setRawDigits] = useState<string>('');
+  const [displayAmount, setDisplayAmount] = useState<string>('');
+  const [numericAmount, setNumericAmount] = useState<number>(0);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedTag, setSelectedTag] = useState<string>('');
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Filter categories matching transaction type
   const matchingCategories = categories.filter(c =>
@@ -63,26 +64,57 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
   useEffect(() => {
     if (isOpen) {
       setType(initialType);
-      setRawDigits('');
+      setDisplayAmount('');
+      setNumericAmount(0);
       setSelectedTag(initialType === 'expense' ? QUICK_EXPENSE_TAGS[0] : QUICK_INCOME_TAGS[0]);
       const defaultCats = categories.filter(c =>
         initialType === 'expense' ? c.type === 'expense_category' : c.type === 'income_source'
       );
       setSelectedCategory(defaultCats.length > 0 ? defaultCats[0].name : (initialType === 'expense' ? 'Food' : 'Salary'));
+      
+      // Auto-focus standard iOS keyboard
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
     }
   }, [isOpen, initialType, categories]);
 
-  // Real-time normalization and thousands separator formatting
-  const sanitizedDigits = normalizeDigits(rawDigits);
-  const numericAmount = sanitizedDigits ? parseInt(sanitizedDigits, 10) || 0 : 0;
-  const formattedDisplayAmount = numericAmount > 0 ? numericAmount.toLocaleString('en-US') : '0';
+  // Handle standard iOS keyboard input with real-time Eastern Arabic normalization and comma formatting
+  const handleAmountInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawVal = e.target.value;
+    // Normalize Arabic digits (٠١٢٣٤٥٦٧٨٩) to standard ASCII (0123456789)
+    const normalized = normalizeDigits(rawVal);
+    // Strip existing commas and any non-numeric characters
+    const cleanDigits = normalized.replace(/\D/g, '');
 
-  // Dismiss and suspend to iOS Home Screen
-  const handleCancel = async () => {
-    onClose();
-    await minimizeApp();
+    if (!cleanDigits) {
+      setDisplayAmount('');
+      setNumericAmount(0);
+      return;
+    }
+
+    // Limit to 12 digits to prevent overflow
+    const cappedDigits = cleanDigits.slice(0, 12);
+    const parsed = parseInt(cappedDigits, 10) || 0;
+    setNumericAmount(parsed);
+    // Format dynamically with thousand separators
+    setDisplayAmount(parsed.toLocaleString('en-US'));
   };
 
+  const handleQuickAddIncrement = (inc: number) => {
+    const next = numericAmount + inc;
+    setNumericAmount(next);
+    setDisplayAmount(next.toLocaleString('en-US'));
+    inputRef.current?.focus();
+  };
+
+  // Exit application to iOS Home Screen on cancel
+  const handleCancel = async () => {
+    onClose();
+    await exitToHomeScreen();
+  };
+
+  // Exit application to iOS Home Screen on save
   const handleSave = async () => {
     if (numericAmount <= 0) return;
 
@@ -99,89 +131,10 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
     });
 
     onClose();
-    await minimizeApp();
+    await exitToHomeScreen();
   };
-
-  // Keyboard shortcut listener for desktop testing and Arabic numeral normalization
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        handleCancel();
-        return;
-      }
-      if (e.key === 'Enter') {
-        if (numericAmount > 0) {
-          handleSave();
-        }
-        return;
-      }
-      if (e.key === 'c' || e.key === 'C') {
-        setRawDigits('');
-        return;
-      }
-      if (e.key === 'Backspace' || e.key === 'Delete') {
-        setRawDigits(prev => prev.slice(0, -1));
-        return;
-      }
-
-      const normalized = normalizeDigits(e.key);
-      if (/^[0-9]$/.test(normalized)) {
-        setRawDigits(prev => {
-          const clean = normalizeDigits(prev);
-          if (clean === '0' || !clean) return normalized;
-          if (clean.length >= 12) return clean;
-          return clean + normalized;
-        });
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, numericAmount, rawDigits]);
 
   if (!isOpen) return null;
-
-  // Keypad actions: 1-9, 0, 000, ⌫ (DEL), and C (Clear)
-  const handleKeypadPress = (val: string) => {
-    if (val === 'C') {
-      // Clear
-      setRawDigits('');
-    } else if (val === 'DEL' || val === '⌫') {
-      // Backspace
-      setRawDigits(prev => prev.slice(0, -1));
-    } else if (val === '000') {
-      // 000 Shortcut
-      setRawDigits(prev => {
-        const clean = normalizeDigits(prev);
-        if (!clean || clean === '0' || clean.length > 9) return prev;
-        return clean + '000';
-      });
-    } else if (val === '0') {
-      // 0
-      setRawDigits(prev => {
-        const clean = normalizeDigits(prev);
-        if (!clean || clean === '0' || clean.length > 11) return prev;
-        return clean + '0';
-      });
-    } else {
-      // Numbers 1-9
-      const normalizedKey = normalizeDigits(val);
-      setRawDigits(prev => {
-        const clean = normalizeDigits(prev);
-        if (!clean || clean === '0') return normalizedKey;
-        if (clean.length >= 12) return clean;
-        return clean + normalizedKey;
-      });
-    }
-  };
-
-  const handleQuickAddIncrement = (inc: number) => {
-    const current = parseInt(normalizeDigits(rawDigits), 10) || 0;
-    const next = current + inc;
-    setRawDigits(next.toString());
-  };
 
   const isExpense = type === 'expense';
   const memoTags = isExpense ? QUICK_EXPENSE_TAGS : QUICK_INCOME_TAGS;
@@ -194,7 +147,7 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
           handleCancel();
         }
       }}
-      className="fixed inset-0 bg-black/65 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-2 sm:p-4 transition-opacity animate-in fade-in duration-150 select-none"
+      className="fixed inset-0 bg-black/65 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-2 sm:p-4 transition-opacity animate-in fade-in duration-150"
     >
       <div
         id="quick-add-floating-card"
@@ -243,6 +196,7 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
                 const expCats = categories.filter(c => c.type === 'expense_category');
                 if (expCats.length > 0) setSelectedCategory(expCats[0].name);
                 setSelectedTag(QUICK_EXPENSE_TAGS[0]);
+                inputRef.current?.focus();
               }}
               className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${
                 isExpense
@@ -262,6 +216,7 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
                 const incCats = categories.filter(c => c.type === 'income_source');
                 if (incCats.length > 0) setSelectedCategory(incCats[0].name);
                 setSelectedTag(QUICK_INCOME_TAGS[0]);
+                inputRef.current?.focus();
               }}
               className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${
                 !isExpense
@@ -275,23 +230,39 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
           </div>
         </div>
 
-        {/* Modal Scrollable Body */}
-        <div className="p-4 space-y-3 overflow-y-auto">
-          {/* ELIMINATE SYSTEM KEYBOARD: Replaced native input with <div> display element */}
-          <div
-            id="quick-add-amount-display"
-            className="bg-gray-50 dark:bg-[#252528] rounded-2xl p-3 border border-gray-100 dark:border-gray-800 text-center select-none"
-          >
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+        {/* Modal Body & Form */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSave();
+          }}
+          className="p-4 space-y-3 overflow-y-auto"
+        >
+          {/* Standard HTML Input with inputMode="decimal" and type="text" */}
+          <div className="bg-gray-50 dark:bg-[#252528] rounded-2xl p-3 border border-gray-100 dark:border-gray-800 text-center">
+            <label
+              htmlFor="quick-add-amount-input"
+              className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block"
+            >
               {language === 'ar' ? 'المبلغ الإجمالي' : 'Total Amount'}
-            </span>
+            </label>
 
-            {/* Formatted Display Value */}
-            <div className="flex items-center justify-center gap-1.5 mt-1">
-              <span className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white tracking-tight font-mono">
-                {formattedDisplayAmount}
+            {/* Standard Input Element */}
+            <div className="relative flex items-center justify-center mt-1">
+              <input
+                ref={inputRef}
+                id="quick-add-amount-input"
+                type="text"
+                inputMode="decimal"
+                autoFocus
+                placeholder="0"
+                value={displayAmount}
+                onChange={handleAmountInputChange}
+                className="w-full text-center text-3xl sm:text-4xl font-black text-gray-900 dark:text-white tracking-tight font-mono bg-transparent outline-none border-none px-12"
+              />
+              <span className="absolute right-3 text-xs font-bold text-gray-400 pointer-events-none">
+                IQD
               </span>
-              <span className="text-xs font-bold text-gray-400">IQD</span>
             </div>
 
             {/* Quick Increment Chips */}
@@ -312,9 +283,9 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
           {/* Category Selector */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                 {isExpense ? (language === 'ar' ? 'الفئة' : 'Category') : (language === 'ar' ? 'المصدر' : 'Source')}
-              </label>
+              </span>
               <span className="text-[10px] text-gray-400">
                 {matchingCategories.length} {language === 'ar' ? 'خيارات' : 'options'}
               </span>
@@ -327,7 +298,10 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
                   <button
                     key={cat.id}
                     type="button"
-                    onClick={() => setSelectedCategory(cat.name)}
+                    onClick={() => {
+                      setSelectedCategory(cat.name);
+                      inputRef.current?.focus();
+                    }}
                     className={`shrink-0 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                       isSelected
                         ? isExpense
@@ -343,13 +317,13 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
             </div>
           </div>
 
-          {/* Quick Memo Tags (Replacing native text input with interactive <div> selector) */}
+          {/* Quick Memo Tags */}
           <div>
             <div className="flex items-center gap-1 mb-1">
               <Tag className="w-3 h-3 text-gray-400" />
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                 {language === 'ar' ? 'ملاحظة الفاتورة' : 'Memo / Tag'}
-              </label>
+              </span>
             </div>
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
               {memoTags.map(tag => {
@@ -358,7 +332,10 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
                   <button
                     key={tag}
                     type="button"
-                    onClick={() => setSelectedTag(tag)}
+                    onClick={() => {
+                      setSelectedTag(tag);
+                      inputRef.current?.focus();
+                    }}
                     className={`shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
                       isSelected
                         ? 'bg-blue-600 text-white shadow-2xs ring-1 ring-blue-400'
@@ -371,67 +348,7 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
               })}
             </div>
           </div>
-
-          {/* CUSTOM ON-SCREEN KEYPAD (Numbers 1-9, 0, 000, ⌫ backspace, and C clear) */}
-          <div className="pt-1 select-none space-y-1.5">
-            {/* Rows 1 to 3: 1 to 9 */}
-            <div className="grid grid-cols-3 gap-1.5">
-              {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(k => (
-                <button
-                  key={k}
-                  id={`quick-numpad-${k}`}
-                  type="button"
-                  onClick={() => handleKeypadPress(k)}
-                  className="h-11 rounded-2xl bg-gray-100 dark:bg-[#2C2C2E] text-lg font-bold text-gray-900 dark:text-gray-100 active:scale-95 active:bg-gray-300 dark:active:bg-gray-600 transition-all flex items-center justify-center shadow-2xs hover:bg-gray-200 dark:hover:bg-[#38383A]"
-                >
-                  {k}
-                </button>
-              ))}
-            </div>
-
-            {/* Row 4: C (Clear), 0, 000 (Shortcut), and ⌫ (Backspace) */}
-            <div className="grid grid-cols-4 gap-1.5">
-              <button
-                id="quick-numpad-C"
-                type="button"
-                onClick={() => handleKeypadPress('C')}
-                className="h-11 rounded-2xl bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 font-bold active:scale-95 active:bg-amber-200 transition-all flex items-center justify-center shadow-2xs hover:bg-amber-200/80"
-                title="Clear"
-              >
-                C
-              </button>
-
-              <button
-                id="quick-numpad-0"
-                type="button"
-                onClick={() => handleKeypadPress('0')}
-                className="h-11 rounded-2xl bg-gray-100 dark:bg-[#2C2C2E] text-lg font-bold text-gray-900 dark:text-gray-100 active:scale-95 active:bg-gray-300 dark:active:bg-gray-600 transition-all flex items-center justify-center shadow-2xs hover:bg-gray-200 dark:hover:bg-[#38383A]"
-              >
-                0
-              </button>
-
-              <button
-                id="quick-numpad-000"
-                type="button"
-                onClick={() => handleKeypadPress('000')}
-                className="h-11 rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-300 text-xs font-bold active:scale-95 active:bg-blue-100 transition-all flex items-center justify-center shadow-2xs hover:bg-blue-100/70"
-                title="000 Shortcut"
-              >
-                000
-              </button>
-
-              <button
-                id="quick-numpad-DEL"
-                type="button"
-                onClick={() => handleKeypadPress('DEL')}
-                className="h-11 rounded-2xl bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 font-bold active:scale-95 active:bg-red-200 transition-all flex items-center justify-center shadow-2xs hover:bg-red-200/80"
-                title="Backspace"
-              >
-                <Delete className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </div>
+        </form>
 
         {/* Modal Footer Actions */}
         <div className="p-3.5 bg-gray-50 dark:bg-[#18181A] border-t border-gray-100 dark:border-gray-800 flex items-center gap-2.5">

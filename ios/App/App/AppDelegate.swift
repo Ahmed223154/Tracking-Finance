@@ -2,6 +2,24 @@ import UIKit
 import Capacitor
 import WidgetKit
 
+// MARK: - Capacitor App Exit Plugin
+@objc(AppExitPlugin)
+public class AppExitPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "AppExitPlugin"
+    public let jsName = "AppExit"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "exitToHomeScreen", returnType: CAPPluginReturnPromise)
+    ]
+
+    @objc func exitToHomeScreen(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            // Suspends the application and returns the user to the SpringBoard Home Screen
+            UIControl().sendAction(#selector(NSXPCConnection.suspend), to: UIApplication.shared, for: nil)
+            call.resolve()
+        }
+    }
+}
+
 // MARK: - Capacitor Widget Bridge Plugin
 @objc(WidgetBridgePlugin)
 public class WidgetBridgePlugin: CAPPlugin, CAPBridgedPlugin {
@@ -10,34 +28,40 @@ public class WidgetBridgePlugin: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "syncWidgetData", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "updateWidgetData", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "exitToHomeScreen", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "minimizeApp", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getPendingTransactions", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "clearPendingTransactions", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "flushPendingTransactions", returnType: CAPPluginReturnPromise)
     ]
 
-    @objc func updateWidgetData(_ call: CAPPluginCall) {
-        let suite = call.getString("suite") ?? "group.com.ahmedalrubaye.financeapp"
-        let balance = call.getDouble("balance") ?? 0.0
-        let unallocated = call.getDouble("unallocated") ?? 0.0
-        let plansJson = call.getString("plans") ?? "[]"
-        let currency = call.getString("currency") ?? "IQD"
-
-        if let sharedDefaults = UserDefaults(suiteName: suite) {
-            sharedDefaults.set(balance, forKey: "cached_balance")
-            sharedDefaults.set(unallocated, forKey: "cached_unallocated")
-            sharedDefaults.set(plansJson, forKey: "cached_plans")
-            sharedDefaults.set(currency, forKey: "cached_currency")
-            sharedDefaults.set(Date().timeIntervalSince1970, forKey: "last_sync_timestamp")
-            sharedDefaults.synchronize()
-
-            if #available(iOS 14.0, *) {
-                WidgetCenter.shared.reloadAllTimelines()
-            }
-            call.resolve(["success": true])
-        } else {
-            call.reject("Could not access UserDefaults suite: \(suite)")
+    @objc func exitToHomeScreen(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            UIControl().sendAction(#selector(NSXPCConnection.suspend), to: UIApplication.shared, for: nil)
+            call.resolve()
         }
+    }
+
+    @objc func updateWidgetData(_ call: CAPPluginCall) {
+        guard let balance = call.getDouble("balance"),
+              let unallocated = call.getDouble("unallocated") else {
+            call.reject("Missing balance or unallocated")
+            return
+        }
+
+        let priorityPlanName = call.getString("priorityPlanName") ?? "No Active Plan"
+        let priorityPlanProgress = call.getDouble("priorityPlanProgress") ?? 0.0
+
+        if let defaults = UserDefaults(suiteName: "group.com.ahmedalrubaye.financeapp") {
+            defaults.set(balance, forKey: "cached_balance")
+            defaults.set(unallocated, forKey: "cached_unallocated")
+            defaults.set(priorityPlanName, forKey: "cached_priority_plan_name")
+            defaults.set(priorityPlanProgress, forKey: "cached_priority_plan_progress")
+            defaults.synchronize()
+        }
+
+        WidgetCenter.shared.reloadAllTimelines()
+        call.resolve()
     }
 
     @objc func minimizeApp(_ call: CAPPluginCall? = nil) {

@@ -2,16 +2,25 @@ import { TransactionItem, PlanItem } from '../types/finance';
 import { FinancialEngine } from './financialEngine';
 import { registerPlugin } from '@capacitor/core';
 
-const NativeWidgetBridge = registerPlugin<any>('WidgetBridge');
+export const AppExit = registerPlugin<any>('AppExit');
+export const NativeWidgetBridge = registerPlugin<any>('WidgetBridge');
 
-export const syncWidgetData = async (balance: number, unallocated: number, plans: any[]) => {
+/**
+ * Direct App Group sync method sending balance, unallocated, and priority plan
+ */
+export const updateWidgetData = async (
+  balance: number,
+  unallocated: number,
+  priorityPlanName: string = 'No Active Plan',
+  priorityPlanProgress: number = 0.0
+) => {
   try {
     if (NativeWidgetBridge && typeof NativeWidgetBridge.updateWidgetData === 'function') {
       await NativeWidgetBridge.updateWidgetData({
         balance,
         unallocated,
-        plans: JSON.stringify(plans),
-        currency: "IQD"
+        priorityPlanName,
+        priorityPlanProgress,
       });
     }
   } catch (err) {
@@ -19,14 +28,44 @@ export const syncWidgetData = async (balance: number, unallocated: number, plans
   }
 };
 
-export const minimizeApp = async (): Promise<void> => {
+/**
+ * Exits the application and returns the user to the iOS SpringBoard Home Screen
+ */
+export const exitToHomeScreen = async (): Promise<void> => {
   try {
+    if (AppExit && typeof AppExit.exitToHomeScreen === 'function') {
+      await AppExit.exitToHomeScreen();
+      return;
+    }
+    if (NativeWidgetBridge && typeof NativeWidgetBridge.exitToHomeScreen === 'function') {
+      await NativeWidgetBridge.exitToHomeScreen();
+      return;
+    }
     if (NativeWidgetBridge && typeof NativeWidgetBridge.minimizeApp === 'function') {
       await NativeWidgetBridge.minimizeApp();
+      return;
     }
   } catch (err) {
-    console.log('[WidgetBridge] minimizeApp not available on web/simulator', err);
+    console.log('[AppExit] exitToHomeScreen not available or in web preview', err);
   }
+};
+
+export const minimizeApp = exitToHomeScreen;
+
+export const syncWidgetData = async (balance: number, unallocated: number, plans: any[]) => {
+  // Find highest priority plan
+  const priorityWeight: Record<string, number> = { essential: 4, high: 3, medium: 2, low: 1 };
+  const activePlans = plans.filter(p => !p.isCompleted && !p.isPaused);
+  const highestPriorityPlan = activePlans.sort(
+    (a, b) => (priorityWeight[b.priority] || 0) - (priorityWeight[a.priority] || 0)
+  )[0] || plans[0];
+
+  const priorityPlanName = highestPriorityPlan ? highestPriorityPlan.name : 'No Active Plan';
+  const target = highestPriorityPlan?.targetAmount || highestPriorityPlan?.target || 0;
+  const current = highestPriorityPlan?.allocatedAmount || highestPriorityPlan?.current || 0;
+  const priorityPlanProgress = target > 0 ? Math.min(1.0, Math.max(0.0, current / target)) : 0.0;
+
+  await updateWidgetData(balance, unallocated, priorityPlanName, priorityPlanProgress);
 };
 
 export interface PendingWidgetTransaction {
