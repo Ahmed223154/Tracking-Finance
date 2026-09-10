@@ -1,9 +1,12 @@
 import { TransactionItem, PlanItem } from '../types/finance';
 import { FinancialEngine } from './financialEngine';
 import { registerPlugin } from '@capacitor/core';
+import { WidgetBridge as CapacitorWidgetBridge, WidgetBridgeWeb } from '../utils/widgetSync';
 
-export const AppExit = registerPlugin<any>('AppExit');
-export const NativeWidgetBridge = registerPlugin<any>('WidgetBridge');
+export const AppExit = registerPlugin<any>('AppExit', {
+  web: () => new WidgetBridgeWeb(),
+});
+export const NativeWidgetBridge = CapacitorWidgetBridge;
 
 /**
  * Direct App Group sync method sending balance, unallocated, and priority plan

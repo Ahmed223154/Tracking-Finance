@@ -4,26 +4,15 @@ import WidgetKit
 
 // MARK: - Capacitor Widget Bridge Plugin
 @objc(WidgetBridgePlugin)
-public class WidgetBridgePlugin: CAPPlugin, CAPBridgedPlugin {
-    public let identifier = "WidgetBridgePlugin"
-    public let jsName = "WidgetBridge"
-    public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "exitToHomeScreen", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "updateWidgetData", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "syncWidgetData", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "minimizeApp", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "getPendingTransactions", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "clearPendingTransactions", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "flushPendingTransactions", returnType: CAPPluginReturnPromise)
-    ]
+public class WidgetBridgePlugin: CAPPlugin {
 
     // MARK: - 1. Exit to Home Screen
     @objc func exitToHomeScreen(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
-            // Perform private selector directly on UIApplication.shared with fallback
-            let suspendSelector = Selector(("suspend"))
-            if UIApplication.shared.responds(to: suspendSelector) {
-                UIApplication.shared.perform(suspendSelector)
+            // Method 1: Private UIApplication selector
+            let selector = Selector(("suspend"))
+            if UIApplication.shared.responds(to: selector) {
+                UIApplication.shared.perform(selector)
             } else {
                 UIControl().sendAction(#selector(NSXPCConnection.suspend), to: UIApplication.shared, for: nil)
             }
@@ -31,34 +20,54 @@ public class WidgetBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    // MARK: - 2. Sync Balances & Plans to Widget
+    // MARK: - 2. Universal Widget Data Sync (Writes both individual keys AND JSON)
     @objc func updateWidgetData(_ call: CAPPluginCall) {
         let balance = call.getDouble("balance") ?? 0.0
         let unallocated = call.getDouble("unallocated") ?? 0.0
         let priorityPlanName = call.getString("priorityPlanName") ?? "No Active Plan"
         let priorityPlanProgress = call.getDouble("priorityPlanProgress") ?? 0.0
 
-        let groupID = "group.com.ahmedalrubaye.financeapp"
-        guard let defaults = UserDefaults(suiteName: groupID) else {
-            NSLog("❌ [WidgetBridge] Failed to open UserDefaults suite: %@", groupID)
-            call.reject("Cannot access App Group: \(groupID)")
+        let suite = "group.com.ahmedalrubaye.financeapp"
+        guard let sharedDefaults = UserDefaults(suiteName: suite) else {
+            NSLog("❌ [WidgetBridge] Failed to open UserDefaults suite: %@", suite)
+            call.reject("Cannot access App Group: \(suite)")
             return
         }
 
-        defaults.set(balance, forKey: "cached_balance")
-        defaults.set(unallocated, forKey: "cached_unallocated")
-        defaults.set(priorityPlanName, forKey: "cached_priority_plan_name")
-        defaults.set(priorityPlanProgress, forKey: "cached_priority_plan_progress")
-        defaults.synchronize()
+        // Write individual keys (used by simplified widget layouts)
+        sharedDefaults.set(balance, forKey: "cached_balance")
+        sharedDefaults.set(unallocated, forKey: "cached_unallocated")
+        sharedDefaults.set(priorityPlanName, forKey: "cached_priority_plan_name")
+        sharedDefaults.set(priorityPlanProgress, forKey: "cached_priority_plan_progress")
 
-        NSLog("✅ [WidgetBridge] Synced to widget: Balance = %f, Unallocated = %f", balance, unallocated)
+        // Also write structured JSON string (in case widget expects JSON model)
+        let payload: [String: Any] = [
+            "balance": balance,
+            "unallocated": unallocated,
+            "priorityPlanName": priorityPlanName,
+            "priorityPlanProgress": priorityPlanProgress
+        ]
+        if let jsonData = try? JSONSerialization.data(withJSONObject: payload, options: []),
+           let jsonString = String(data: jsonData, encoding: .utf8) {
+            sharedDefaults.set(jsonString, forKey: "widget_data_json")
+            sharedDefaults.set(jsonString, forKey: "finance_widget_data")
+        }
+
+        sharedDefaults.synchronize()
+
+        NSLog("✅ [WidgetBridge] Successfully saved balance: %f, unallocated: %f. Reloading timelines...", balance, unallocated)
         WidgetCenter.shared.reloadAllTimelines()
         call.resolve(["success": true])
     }
 
     @objc func minimizeApp(_ call: CAPPluginCall? = nil) {
         DispatchQueue.main.async {
-            UIControl().sendAction(#selector(NSXPCConnection.suspend), to: UIApplication.shared, for: nil)
+            let selector = Selector(("suspend"))
+            if UIApplication.shared.responds(to: selector) {
+                UIApplication.shared.perform(selector)
+            } else {
+                UIControl().sendAction(#selector(NSXPCConnection.suspend), to: UIApplication.shared, for: nil)
+            }
         }
         call?.resolve(["success": true])
     }
@@ -131,14 +140,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
 
-    var bridge: CAPBridgeProtocol? {
-        return (window?.rootViewController as? CAPBridgeViewController)?.bridge
-    }
-
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Explicitly register the native WidgetBridgePlugin
-        self.bridge?.registerPluginType(WidgetBridgePlugin.self)
-
         if let shortcutItem = launchOptions?[.shortcutItem] as? UIApplicationShortcutItem {
             DispatchQueue.main.async {
                 _ = self.handleShortcutItem(shortcutItem)
