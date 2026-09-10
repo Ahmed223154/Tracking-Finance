@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CategoryItem, TransactionItem } from '../../../types/finance';
 import { X, Check, ArrowDownCircle, ArrowUpCircle, Delete, Sparkles } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
+import { minimizeApp } from '../../../services/widgetBridge';
 
 interface QuickAddPopupProps {
   isOpen: boolean;
@@ -10,6 +11,18 @@ interface QuickAddPopupProps {
   onClose: () => void;
   onSave: (item: Omit<TransactionItem, 'id' | 'createdAt' | 'updatedAt'>) => void;
 }
+
+/**
+ * Normalizes Arabic numerals (٠١٢٣٤٥٦٧٨٩) into standard digits (0123456789)
+ */
+export const normalizeArabicNumerals = (input: string): string => {
+  if (!input) return '';
+  const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+  return input.replace(/[٠-٩]/g, match => {
+    const idx = arabicDigits.indexOf(match);
+    return idx > -1 ? idx.toString() : match;
+  });
+};
 
 export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
   isOpen,
@@ -20,11 +33,9 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
 }) => {
   const { language } = useI18n();
   const [type, setType] = useState<'expense' | 'income'>(initialType);
-  const [amountStr, setAmountStr] = useState<string>('');
+  const [rawDigits, setRawDigits] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [description, setDescription] = useState<string>('');
-  const [showKeypad, setShowKeypad] = useState<boolean>(true);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   // Filter categories matching transaction type
   const matchingCategories = categories.filter(c =>
@@ -35,63 +46,28 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
   useEffect(() => {
     if (isOpen) {
       setType(initialType);
-      setAmountStr('');
+      setRawDigits('');
       setDescription('');
       const defaultCats = categories.filter(c =>
         initialType === 'expense' ? c.type === 'expense_category' : c.type === 'income_source'
       );
       setSelectedCategory(defaultCats.length > 0 ? defaultCats[0].name : (initialType === 'expense' ? 'Food' : 'Salary'));
-      // Pre-focus numeric input
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 50);
     }
   }, [isOpen, initialType, categories]);
 
-  // Handle escape key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  // Thousand Separator and Numeric Calculation
+  const sanitizedDigits = normalizeArabicNumerals(rawDigits);
+  const numericAmount = sanitizedDigits ? parseInt(sanitizedDigits, 10) || 0 : 0;
+  const formattedDisplayAmount = numericAmount > 0 ? numericAmount.toLocaleString('en-US') : '0';
 
-  if (!isOpen) return null;
-
-  const handleKeypadPress = (val: string) => {
-    if (val === 'DEL') {
-      setAmountStr(prev => prev.slice(0, -1));
-    } else if (val === '.') {
-      if (!amountStr.includes('.')) {
-        setAmountStr(prev => (prev === '' ? '0.' : prev + '.'));
-      }
-    } else if (val === '00') {
-      if (amountStr !== '' && amountStr !== '0') {
-        setAmountStr(prev => prev + '00');
-      }
-    } else {
-      if (amountStr === '0') {
-        setAmountStr(val);
-      } else {
-        setAmountStr(prev => prev + val);
-      }
-    }
+  // Return to Home / Dismiss
+  const handleCancel = async () => {
+    onClose();
+    await minimizeApp();
   };
 
-  const handleQuickAddIncrement = (inc: number) => {
-    const current = parseFloat(amountStr) || 0;
-    setAmountStr((current + inc).toString());
-  };
-
-  const handleSave = () => {
-    const numericAmount = parseFloat(amountStr);
-    if (!numericAmount || numericAmount <= 0) {
-      inputRef.current?.focus();
-      return;
-    }
+  const handleSave = async () => {
+    if (numericAmount <= 0) return;
 
     const today = new Date().toISOString().split('T')[0];
     onSave({
@@ -106,31 +82,115 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
     });
 
     onClose();
+    await minimizeApp();
+  };
+
+  // Keyboard shortcut listener for desktop testing and Arabic numeral normalization
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Do not capture if focused on text input
+      if ((e.target as HTMLElement)?.tagName === 'INPUT') {
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        handleCancel();
+        return;
+      }
+      if (e.key === 'Enter') {
+        if (numericAmount > 0) {
+          handleSave();
+        }
+        return;
+      }
+      if (e.key === 'Backspace' || e.key === 'Delete') {
+        setRawDigits(prev => prev.slice(0, -1));
+        return;
+      }
+
+      const normalized = normalizeArabicNumerals(e.key);
+      if (/^[0-9]$/.test(normalized)) {
+        setRawDigits(prev => {
+          const clean = normalizeArabicNumerals(prev);
+          if (clean === '0' || !clean) return normalized;
+          if (clean.length >= 12) return clean;
+          return clean + normalized;
+        });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, numericAmount, rawDigits]);
+
+  if (!isOpen) return null;
+
+  // Keypad press handler
+  const handleKeypadPress = (val: string) => {
+    if (val === 'DEL') {
+      setRawDigits(prev => prev.slice(0, -1));
+    } else if (val === '000') {
+      setRawDigits(prev => {
+        const clean = normalizeArabicNumerals(prev);
+        if (!clean || clean === '0' || clean.length > 9) return prev;
+        return clean + '000';
+      });
+    } else if (val === '0') {
+      setRawDigits(prev => {
+        const clean = normalizeArabicNumerals(prev);
+        if (!clean || clean === '0' || clean.length > 11) return prev;
+        return clean + '0';
+      });
+    } else {
+      // Keys 1 through 9
+      const normalizedKey = normalizeArabicNumerals(val);
+      setRawDigits(prev => {
+        const clean = normalizeArabicNumerals(prev);
+        if (!clean || clean === '0') return normalizedKey;
+        if (clean.length >= 12) return clean;
+        return clean + normalizedKey;
+      });
+    }
+  };
+
+  const handleQuickAddIncrement = (inc: number) => {
+    const current = parseInt(normalizeArabicNumerals(rawDigits), 10) || 0;
+    const next = current + inc;
+    setRawDigits(next.toString());
   };
 
   const isExpense = type === 'expense';
-  const numericVal = parseFloat(amountStr) || 0;
 
   return (
     <div
       id="quick-add-backdrop"
       onClick={e => {
         if (e.target === e.currentTarget) {
-          onClose();
+          handleCancel();
         }
       }}
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4 transition-opacity animate-in fade-in duration-150"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 transition-opacity animate-in fade-in duration-150"
     >
       <div
         id="quick-add-floating-card"
-        className="w-full max-w-sm bg-white dark:bg-[#1C1C1E] rounded-3xl shadow-2xl border border-black/10 dark:border-white/10 overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200"
+        className="w-full max-w-sm bg-white dark:bg-[#1C1C1E] rounded-3xl shadow-2xl border border-black/10 dark:border-white/10 overflow-hidden flex flex-col max-h-[95vh] animate-in zoom-in-95 duration-200"
       >
         {/* Modal Header */}
-        <div className="px-5 pt-4 pb-2 flex items-center justify-between border-b border-gray-100 dark:border-gray-800">
+        <div className="px-5 pt-4 pb-2.5 flex items-center justify-between border-b border-gray-100 dark:border-gray-800">
           <div className="flex items-center gap-2">
             <span className="flex h-2.5 w-2.5 relative">
-              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isExpense ? 'bg-red-400' : 'bg-emerald-400'}`}></span>
-              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isExpense ? 'bg-red-500' : 'bg-emerald-500'}`}></span>
+              <span
+                className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                  isExpense ? 'bg-red-400' : 'bg-emerald-400'
+                }`}
+              ></span>
+              <span
+                className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                  isExpense ? 'bg-red-500' : 'bg-emerald-500'
+                }`}
+              ></span>
             </span>
             <div className="flex items-center gap-1.5 font-bold text-sm text-gray-900 dark:text-white">
               <Sparkles className="w-4 h-4 text-amber-500" />
@@ -140,7 +200,8 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
 
           <button
             id="quick-add-close-btn"
-            onClick={onClose}
+            onClick={handleCancel}
+            aria-label="Close"
             className="p-1.5 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -158,7 +219,7 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
                 const expCats = categories.filter(c => c.type === 'expense_category');
                 if (expCats.length > 0) setSelectedCategory(expCats[0].name);
               }}
-              className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${
                 isExpense
                   ? 'bg-red-500 text-white shadow-md'
                   : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
@@ -176,7 +237,7 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
                 const incCats = categories.filter(c => c.type === 'income_source');
                 if (incCats.length > 0) setSelectedCategory(incCats[0].name);
               }}
-              className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${
                 !isExpense
                   ? 'bg-emerald-600 text-white shadow-md'
                   : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
@@ -189,23 +250,19 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
         </div>
 
         {/* Content Body */}
-        <div className="p-4 space-y-3.5 overflow-y-auto">
-          {/* Prominent Amount Display & Input */}
-          <div className="bg-gray-50 dark:bg-[#252528] rounded-2xl p-3 border border-gray-100 dark:border-gray-800 text-center">
+        <div className="p-4 space-y-3 overflow-y-auto">
+          {/* Prominent Formatted Amount Display (No virtual keyboard input) */}
+          <div
+            id="quick-add-amount-display"
+            className="bg-gray-50 dark:bg-[#252528] rounded-2xl p-3.5 border border-gray-100 dark:border-gray-800 text-center select-none"
+          >
             <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-              {language === 'ar' ? 'المبلغ' : 'Amount'}
+              {language === 'ar' ? 'المبلغ المطلوب' : 'Amount'}
             </span>
-            <div className="flex items-center justify-center gap-1 mt-1">
-              <input
-                ref={inputRef}
-                id="quick-add-amount-input"
-                type="number"
-                inputMode="decimal"
-                value={amountStr}
-                onChange={e => setAmountStr(e.target.value)}
-                placeholder="0"
-                className="w-full text-center text-3xl font-black bg-transparent text-gray-900 dark:text-white focus:outline-none placeholder-gray-300 dark:placeholder-gray-600"
-              />
+            <div className="flex items-center justify-center gap-1.5 mt-1">
+              <span className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white tracking-tight font-mono">
+                {formattedDisplayAmount}
+              </span>
               <span className="text-sm font-bold text-gray-400">IQD</span>
             </div>
 
@@ -216,9 +273,9 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
                   key={inc}
                   type="button"
                   onClick={() => handleQuickAddIncrement(inc)}
-                  className="px-2 py-0.5 rounded-lg bg-white dark:bg-gray-800 text-[11px] font-bold text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95 transition-all shadow-2xs"
+                  className="px-2.5 py-1 rounded-lg bg-white dark:bg-gray-800 text-[11px] font-bold text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95 transition-all shadow-2xs"
                 >
-                  +{inc.toLocaleString()}
+                  +{inc.toLocaleString('en-US')}
                 </button>
               ))}
             </div>
@@ -226,7 +283,7 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
 
           {/* Category Selector */}
           <div>
-            <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center justify-between mb-1">
               <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
                 {isExpense ? (language === 'ar' ? 'الفئة' : 'Category') : (language === 'ar' ? 'المصدر' : 'Source')}
               </label>
@@ -235,7 +292,7 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
               </span>
             </div>
 
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 no-scrollbar">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
               {matchingCategories.map(cat => {
                 const isSelected = selectedCategory === cat.name;
                 return (
@@ -258,59 +315,48 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
             </div>
           </div>
 
-          {/* Description Input */}
+          {/* Built-in On-Screen Keypad (Keys 1-9, 0, 000, and ⌫ Delete) */}
+          <div className="pt-1 select-none">
+            <div className="grid grid-cols-3 gap-2">
+              {['1', '2', '3', '4', '5', '6', '7', '8', '9', '000', '0', 'DEL'].map(k => (
+                <button
+                  key={k}
+                  id={`quick-numpad-${k}`}
+                  type="button"
+                  onClick={() => handleKeypadPress(k)}
+                  className="h-11 rounded-2xl bg-gray-100 dark:bg-[#2C2C2E] text-base font-bold text-gray-900 dark:text-gray-100 active:scale-95 active:bg-gray-300 dark:active:bg-gray-600 transition-all flex items-center justify-center shadow-2xs hover:bg-gray-200 dark:hover:bg-[#38383A]"
+                >
+                  {k === 'DEL' ? (
+                    <div className="flex items-center gap-1 text-red-500 font-bold">
+                      <Delete className="w-5 h-5" />
+                    </div>
+                  ) : (
+                    <span>{k}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Optional Note */}
           <div>
-            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-              {language === 'ar' ? 'الوصف / ملاحظة' : 'Description / Note'}
-            </label>
             <input
               id="quick-add-desc-input"
               type="text"
               value={description}
               onChange={e => setDescription(e.target.value)}
-              placeholder={isExpense ? 'e.g. Lunch, Coffee, Taxi' : 'e.g. Freelance bonus, Salary'}
-              className="w-full px-3.5 py-2 text-xs rounded-xl bg-gray-50 dark:bg-[#252528] border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder={language === 'ar' ? 'ملاحظة اختيارية (مثل: غداء، تاكسي)' : 'Optional memo (e.g. Lunch, Taxi)'}
+              className="w-full px-3 py-1.5 text-xs rounded-xl bg-gray-50 dark:bg-[#252528] border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
-          </div>
-
-          {/* Fast Numeric Keypad (optional toggle / direct convenience on touch) */}
-          <div className="pt-1">
-            <div className="flex items-center justify-between pb-1.5">
-              <span className="text-[10px] font-semibold text-gray-400">
-                {language === 'ar' ? 'لوحة أرقام سريعة' : 'Numeric Keypad'}
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowKeypad(!showKeypad)}
-                className="text-[10px] text-blue-500 font-bold hover:underline"
-              >
-                {showKeypad ? (language === 'ar' ? 'إخفاء' : 'Hide') : (language === 'ar' ? 'إظهار' : 'Show')}
-              </button>
-            </div>
-
-            {showKeypad && (
-              <div className="grid grid-cols-3 gap-1.5">
-                {['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'DEL'].map(k => (
-                  <button
-                    key={k}
-                    type="button"
-                    onClick={() => handleKeypadPress(k)}
-                    className="h-9 rounded-xl bg-gray-100 dark:bg-[#2A2A2D] text-sm font-bold text-gray-800 dark:text-gray-100 active:scale-95 transition-all flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 shadow-2xs"
-                  >
-                    {k === 'DEL' ? <Delete className="w-4 h-4 text-red-500" /> : k}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 
         {/* Modal Footer Actions */}
-        <div className="p-4 bg-gray-50 dark:bg-[#18181A] border-t border-gray-100 dark:border-gray-800 flex items-center gap-2.5">
+        <div className="p-3.5 bg-gray-50 dark:bg-[#18181A] border-t border-gray-100 dark:border-gray-800 flex items-center gap-2.5">
           <button
             id="quick-add-cancel-btn"
             type="button"
-            onClick={onClose}
+            onClick={handleCancel}
             className="flex-1 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-98 transition-all"
           >
             {language === 'ar' ? 'إلغاء' : 'Cancel'}
@@ -319,10 +365,10 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
           <button
             id="quick-add-save-btn"
             type="button"
-            disabled={numericVal <= 0}
+            disabled={numericAmount <= 0}
             onClick={handleSave}
             className={`flex-2 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold text-white shadow-md active:scale-98 transition-all ${
-              numericVal > 0
+              numericAmount > 0
                 ? isExpense
                   ? 'bg-red-500 hover:bg-red-600 shadow-red-500/30'
                   : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30'
@@ -332,7 +378,7 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
             <Check className="w-4 h-4" />
             <span>
               {language === 'ar'
-                ? `حفظ (${numericVal.toLocaleString()} IQD)`
+                ? `حفظ (${numericAmount.toLocaleString('en-US')} IQD)`
                 : `Save ${isExpense ? 'Expense' : 'Income'}`}
             </span>
           </button>

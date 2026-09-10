@@ -9,10 +9,43 @@ public class WidgetBridgePlugin: CAPPlugin, CAPBridgedPlugin {
     public let jsName = "WidgetBridge"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "syncWidgetData", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "updateWidgetData", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "minimizeApp", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getPendingTransactions", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "clearPendingTransactions", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "flushPendingTransactions", returnType: CAPPluginReturnPromise)
     ]
+
+    @objc func updateWidgetData(_ call: CAPPluginCall) {
+        let suite = call.getString("suite") ?? "group.com.ahmedalrubaye.financeapp"
+        let balance = call.getDouble("balance") ?? 0.0
+        let unallocated = call.getDouble("unallocated") ?? 0.0
+        let plansJson = call.getString("plans") ?? "[]"
+        let currency = call.getString("currency") ?? "IQD"
+
+        if let sharedDefaults = UserDefaults(suiteName: suite) {
+            sharedDefaults.set(balance, forKey: "cached_balance")
+            sharedDefaults.set(unallocated, forKey: "cached_unallocated")
+            sharedDefaults.set(plansJson, forKey: "cached_plans")
+            sharedDefaults.set(currency, forKey: "cached_currency")
+            sharedDefaults.set(Date().timeIntervalSince1970, forKey: "last_sync_timestamp")
+            sharedDefaults.synchronize()
+
+            if #available(iOS 14.0, *) {
+                WidgetCenter.shared.reloadAllTimelines()
+            }
+            call.resolve(["success": true])
+        } else {
+            call.reject("Could not access UserDefaults suite: \(suite)")
+        }
+    }
+
+    @objc func minimizeApp(_ call: CAPPluginCall? = nil) {
+        DispatchQueue.main.async {
+            UIControl().sendAction(#selector(NSXPCConnection.suspend), to: UIApplication.shared, for: nil)
+        }
+        call?.resolve(["success": true])
+    }
 
     @objc func syncWidgetData(_ call: CAPPluginCall) {
         let suite = call.getString("suite") ?? "group.com.ahmedalrubaye.financeapp"
@@ -127,5 +160,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
 
         return ApplicationDelegateProxy.shared.application(UIApplication.shared, open: url, options: [:])
+    }
+
+    @objc func minimizeApp() {
+        DispatchQueue.main.async {
+            UIControl().sendAction(#selector(NSXPCConnection.suspend), to: UIApplication.shared, for: nil)
+        }
     }
 }

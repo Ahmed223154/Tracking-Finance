@@ -242,48 +242,87 @@ public class SharedDataBridge {
         return (mode, planId)
     }
 
-    public func readPayload(selectedPlanId: String?) -> WidgetDataPayload {
+    public func readPayload(
+        selectedPlanId: String? = nil,
+        cachedBalance: Double? = nil,
+        cachedUnallocated: Double? = nil,
+        cachedPlansJson: String? = nil
+    ) -> WidgetDataPayload {
         guard let sharedDefaults = UserDefaults(suiteName: appGroupSuite) else {
             return WidgetDataPayload.fallback
         }
 
+        // 1. Live values written by updateWidgetData
+        let liveBalance = cachedBalance ?? (sharedDefaults.object(forKey: "cached_balance") != nil ? sharedDefaults.double(forKey: "cached_balance") : nil)
+        let liveUnallocated = cachedUnallocated ?? (sharedDefaults.object(forKey: "cached_unallocated") != nil ? sharedDefaults.double(forKey: "cached_unallocated") : nil)
+        let livePlansJson = cachedPlansJson ?? sharedDefaults.string(forKey: "cached_plans")
+        let liveCurrency = sharedDefaults.string(forKey: "cached_currency") ?? "IQD"
+
+        // Parse plans from cached_plans if available
+        var livePlans: [WidgetPlanSummary] = []
+        if let plansJson = livePlansJson, let plansData = plansJson.data(using: .utf8) {
+            if let rawArray = try? JSONSerialization.jsonObject(with: plansData) as? [[String: Any]] {
+                for item in rawArray {
+                    let id = "\(item["id"] ?? UUID().uuidString)"
+                    let name = item["name"] as? String ?? "Plan"
+                    let target = (item["targetAmount"] as? Double) ?? (item["target"] as? Double) ?? 1000.0
+                    let current = (item["allocatedAmount"] as? Double) ?? (item["current"] as? Double) ?? 0.0
+                    let progress = (item["progress"] as? Double) ?? (target > 0 ? (current / target) : 0.0)
+                    livePlans.append(WidgetPlanSummary(id: id, name: name, progress: progress, current: current, target: target))
+                }
+            }
+        }
+
+        // 2. Base JSON payload if available
         let jsonString = sharedDefaults.string(forKey: "widget_data_json")
             ?? sharedDefaults.string(forKey: "finance_widget_data")
 
-        guard let jsonString = jsonString, let jsonData = jsonString.data(using: .utf8) else {
-            return WidgetDataPayload.fallback
+        var basePayload: WidgetDataPayload? = nil
+        if let jsonString = jsonString, let jsonData = jsonString.data(using: .utf8) {
+            basePayload = try? JSONDecoder().decode(WidgetDataPayload.self, from: jsonData)
         }
 
-        do {
-            let decoder = JSONDecoder()
-            let decoded = try decoder.decode(WidgetDataPayload.self, from: jsonData)
+        let totalBalance = liveBalance ?? basePayload?.totalBalance ?? 12500.0
+        let unallocatedAmount = liveUnallocated ?? basePayload?.unallocatedAmount ?? 3400.0
+        let currency = basePayload?.currency ?? liveCurrency
+        let plans = !livePlans.isEmpty ? livePlans : (basePayload?.plans ?? WidgetDataPayload.fallback.plans)
 
-            // If a specific plan id is chosen, resolve selectedPlan accordingly if needed
-            if let planId = selectedPlanId, !planId.isEmpty {
-                if let matched = decoded.plans.first(where: { $0.id == planId }) {
-                    let focused = WidgetFocusedPlan(
-                        name: matched.name,
-                        progress: matched.progress,
-                        current: matched.current ?? (matched.progress * 1000.0),
-                        target: matched.target ?? 1000.0
-                    )
-                    return WidgetDataPayload(
-                        totalBalance: decoded.totalBalance,
-                        unallocatedAmount: decoded.unallocatedAmount,
-                        currency: decoded.currency,
-                        selectedPlan: focused,
-                        plans: decoded.plans,
-                        totalBalanceFormatted: decoded.totalBalanceFormatted,
-                        unallocatedAmountFormatted: decoded.unallocatedAmountFormatted,
-                        lastSyncTimestamp: decoded.lastSyncTimestamp
-                    )
-                }
-            }
-
-            return decoded
-        } catch {
-            return WidgetDataPayload.fallback
+        // Resolve selected plan
+        var selectedPlan: WidgetFocusedPlan? = nil
+        if let planId = selectedPlanId, !planId.isEmpty, let matched = plans.first(where: { $0.id == planId }) {
+            selectedPlan = WidgetFocusedPlan(
+                name: matched.name,
+                progress: matched.progress,
+                current: matched.current ?? (matched.progress * (matched.target ?? 1000.0)),
+                target: matched.target ?? 1000.0
+            )
+        } else if let first = plans.first {
+            selectedPlan = WidgetFocusedPlan(
+                name: first.name,
+                progress: first.progress,
+                current: first.current ?? (first.progress * (first.target ?? 1000.0)),
+                target: first.target ?? 1000.0
+            )
+        } else {
+            selectedPlan = basePayload?.selectedPlan
         }
+
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 0
+        let formattedBal = "\(formatter.string(from: NSNumber(value: totalBalance)) ?? "\(Int(totalBalance))") \(currency)"
+        let formattedUnalloc = "\(formatter.string(from: NSNumber(value: unallocatedAmount)) ?? "\(Int(unallocatedAmount))") \(currency)"
+
+        return WidgetDataPayload(
+            totalBalance: totalBalance,
+            unallocatedAmount: unallocatedAmount,
+            currency: currency,
+            selectedPlan: selectedPlan,
+            plans: plans,
+            totalBalanceFormatted: formattedBal,
+            unallocatedAmountFormatted: formattedUnalloc,
+            lastSyncTimestamp: ISO8601DateFormatter().string(from: Date())
+        )
     }
 }
 
@@ -321,7 +360,16 @@ public struct FinanceWidgetTimelineProvider: TimelineProvider {
         let sharedDefaults = UserDefaults(suiteName: "group.com.ahmedalrubaye.financeapp")
         let displayMode = sharedDefaults?.string(forKey: "widget_display_mode") ?? "balance"
         let selectedPlanId = sharedDefaults?.string(forKey: "widget_selected_plan_id")
-        let payload = SharedDataBridge.shared.readPayload(selectedPlanId: selectedPlanId)
+        let cachedBalance = sharedDefaults?.object(forKey: "cached_balance") != nil ? sharedDefaults?.double(forKey: "cached_balance") : nil
+        let cachedUnallocated = sharedDefaults?.object(forKey: "cached_unallocated") != nil ? sharedDefaults?.double(forKey: "cached_unallocated") : nil
+        let cachedPlans = sharedDefaults?.string(forKey: "cached_plans")
+
+        let payload = SharedDataBridge.shared.readPayload(
+            selectedPlanId: selectedPlanId,
+            cachedBalance: cachedBalance,
+            cachedUnallocated: cachedUnallocated,
+            cachedPlansJson: cachedPlans
+        )
 
         let entry = FinanceWidgetEntry(
             date: Date(),
@@ -336,7 +384,18 @@ public struct FinanceWidgetTimelineProvider: TimelineProvider {
         let sharedDefaults = UserDefaults(suiteName: "group.com.ahmedalrubaye.financeapp")
         let displayMode = sharedDefaults?.string(forKey: "widget_display_mode") ?? "balance"
         let selectedPlanId = sharedDefaults?.string(forKey: "widget_selected_plan_id")
-        let payload = SharedDataBridge.shared.readPayload(selectedPlanId: selectedPlanId)
+
+        // Read real-time values: cached_balance, cached_unallocated, and cached_plans
+        let cachedBalance = sharedDefaults?.object(forKey: "cached_balance") != nil ? sharedDefaults?.double(forKey: "cached_balance") : nil
+        let cachedUnallocated = sharedDefaults?.object(forKey: "cached_unallocated") != nil ? sharedDefaults?.double(forKey: "cached_unallocated") : nil
+        let cachedPlans = sharedDefaults?.string(forKey: "cached_plans")
+
+        let payload = SharedDataBridge.shared.readPayload(
+            selectedPlanId: selectedPlanId,
+            cachedBalance: cachedBalance,
+            cachedUnallocated: cachedUnallocated,
+            cachedPlansJson: cachedPlans
+        )
 
         let entry = FinanceWidgetEntry(
             date: Date(),

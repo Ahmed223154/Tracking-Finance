@@ -24,7 +24,7 @@ import { DeployGuide } from './components/code-hub/DeployGuide';
 import { FinancialEngine } from './services/financialEngine';
 import { Smartphone, FileCode2, BookOpen, ShieldCheck } from 'lucide-react';
 import { useI18n, I18nProvider, I18nContext, defaultI18nContext } from './context/I18nContext';
-import { WidgetBridge } from './services/widgetBridge';
+import { WidgetBridge, syncWidgetData } from './services/widgetBridge';
 import { DeepLinkService } from './services/deepLinkService';
 
 function FinanceAppMain() {
@@ -138,9 +138,11 @@ function FinanceAppMain() {
 
   // Sync with App Group UserDefaults / localStorage for iOS Home Screen Widgets
   useEffect(() => {
+    const totalBalance = FinancialEngine.actualBalance(transactions);
     const unallocated = FinancialEngine.unallocatedBalance(transactions, plans);
     const avgSavings = FinancialEngine.historicalMonthlyAverageSavings(transactions);
     WidgetBridge.syncData(transactions, plans, unallocated, avgSavings, language);
+    syncWidgetData(totalBalance, unallocated, plans);
   }, [transactions, plans, language]);
 
   // Listen for Capacitor appUrlOpen native deep link event
@@ -267,7 +269,7 @@ function FinanceAppMain() {
     setTransactions(prev => [item, ...prev]);
   };
 
-  const handleQuickAddSave = (newTx: Omit<TransactionItem, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const handleQuickAddSave = async (newTx: Omit<TransactionItem, 'id' | 'createdAt' | 'updatedAt'>) => {
     handleAddTransaction(newTx);
     const updated: TransactionItem[] = [
       {
@@ -278,9 +280,11 @@ function FinanceAppMain() {
       },
       ...transactions,
     ];
+    const totalBalance = FinancialEngine.actualBalance(updated);
     const unallocated = FinancialEngine.unallocatedBalance(updated, plans);
     const avgSavings = FinancialEngine.historicalMonthlyAverageSavings(updated);
     WidgetBridge.syncData(updated, plans, unallocated, avgSavings, language);
+    await syncWidgetData(totalBalance, unallocated, plans);
     setQuickInputModal(prev => ({ ...prev, isOpen: false }));
   };
 

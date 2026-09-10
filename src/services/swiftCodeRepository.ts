@@ -18,6 +18,7 @@ import settingsViewCode from '../../swiftpm/Sources/Views/SettingsView.swift?raw
 import readmeCode from '../../swiftpm/README.md?raw';
 import financeWidgetCode from '../../ios/App/FinanceWidget/FinanceWidget.swift?raw';
 import addExpenseIntentCode from '../../ios/App/FinanceWidget/AddExpenseIntent.swift?raw';
+import appDelegateCode from '../../ios/App/App/AppDelegate.swift?raw';
 
 export interface SwiftFile {
   path: string;
@@ -139,6 +140,13 @@ export const SWIFT_FILES: SwiftFile[] = [
     category: 'widget',
     description: 'iOS WidgetKit extension with 4 display modes & App Group sync bridge',
     code: financeWidgetCode,
+  },
+  {
+    path: 'App/AppDelegate.swift',
+    name: 'AppDelegate.swift',
+    category: 'core',
+    description: 'Capacitor native bridge with minimizeApp() and updateWidgetData live App Group syncing',
+    code: appDelegateCode,
   },
   {
     path: 'FinanceWidget/AddExpenseIntent.swift',

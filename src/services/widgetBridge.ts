@@ -1,5 +1,33 @@
 import { TransactionItem, PlanItem } from '../types/finance';
 import { FinancialEngine } from './financialEngine';
+import { registerPlugin } from '@capacitor/core';
+
+const NativeWidgetBridge = registerPlugin<any>('WidgetBridge');
+
+export const syncWidgetData = async (balance: number, unallocated: number, plans: any[]) => {
+  try {
+    if (NativeWidgetBridge && typeof NativeWidgetBridge.updateWidgetData === 'function') {
+      await NativeWidgetBridge.updateWidgetData({
+        balance,
+        unallocated,
+        plans: JSON.stringify(plans),
+        currency: "IQD"
+      });
+    }
+  } catch (err) {
+    console.log('[WidgetBridge] updateWidgetData failed or not in native context', err);
+  }
+};
+
+export const minimizeApp = async (): Promise<void> => {
+  try {
+    if (NativeWidgetBridge && typeof NativeWidgetBridge.minimizeApp === 'function') {
+      await NativeWidgetBridge.minimizeApp();
+    }
+  } catch (err) {
+    console.log('[WidgetBridge] minimizeApp not available on web/simulator', err);
+  }
+};
 
 export interface PendingWidgetTransaction {
   id: string;
@@ -275,6 +303,13 @@ export class WidgetBridge {
       }
     } catch {
       // In web simulator or browser preview, native plugin is not bound
+    }
+
+    // Also synchronize live discrete values for direct App Group consumption
+    try {
+      await syncWidgetData(totalBalance, unallocatedAmount, plans);
+    } catch {
+      // Ignore
     }
 
     return payload;
