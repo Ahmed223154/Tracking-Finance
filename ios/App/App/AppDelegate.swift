@@ -38,19 +38,22 @@ public class WidgetBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         let priorityPlanName = call.getString("priorityPlanName") ?? "No Active Plan"
         let priorityPlanProgress = call.getDouble("priorityPlanProgress") ?? 0.0
 
-        if let defaults = UserDefaults(suiteName: "group.com.ahmedalrubaye.financeapp") {
-            defaults.set(balance, forKey: "cached_balance")
-            defaults.set(unallocated, forKey: "cached_unallocated")
-            defaults.set(priorityPlanName, forKey: "cached_priority_plan_name")
-            defaults.set(priorityPlanProgress, forKey: "cached_priority_plan_progress")
-            defaults.synchronize()
-            
-            // Immediately tell iOS to redraw the widget
-            WidgetCenter.shared.reloadAllTimelines()
-            call.resolve(["success": true])
-        } else {
-            call.reject("Failed to access App Group UserDefaults")
+        let groupID = "group.com.ahmedalrubaye.financeapp"
+        guard let defaults = UserDefaults(suiteName: groupID) else {
+            NSLog("❌ [WidgetBridge] Failed to open UserDefaults suite: %@", groupID)
+            call.reject("Cannot access App Group: \(groupID)")
+            return
         }
+
+        defaults.set(balance, forKey: "cached_balance")
+        defaults.set(unallocated, forKey: "cached_unallocated")
+        defaults.set(priorityPlanName, forKey: "cached_priority_plan_name")
+        defaults.set(priorityPlanProgress, forKey: "cached_priority_plan_progress")
+        defaults.synchronize()
+
+        NSLog("✅ [WidgetBridge] Synced to widget: Balance = %f, Unallocated = %f", balance, unallocated)
+        WidgetCenter.shared.reloadAllTimelines()
+        call.resolve(["success": true])
     }
 
     @objc func minimizeApp(_ call: CAPPluginCall? = nil) {
