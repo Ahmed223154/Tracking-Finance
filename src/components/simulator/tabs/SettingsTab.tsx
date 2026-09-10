@@ -45,6 +45,27 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   const [widgetSelectedPlanId, setWidgetSelectedPlanId] = useState<string | null>(() => WidgetBridge.getSelectedPlanId());
   const [widgetSyncing, setWidgetSyncing] = useState<boolean>(false);
   const [widgetSyncMessage, setWidgetSyncMessage] = useState<string | null>(null);
+  const [intentDialog, setIntentDialog] = useState<string | null>(null);
+
+  const handleTestAppIntentExpense = () => {
+    WidgetBridge.simulateIntentAddExpense(15000, 'Food & Dining', 'Home Screen Quick Log');
+    setIntentDialog(
+      language === 'ar'
+        ? 'تم تسجيل 15,000 د.ع في طعام وضيافة (عبر AppIntent)!'
+        : 'Logged 15,000 IQD under Food & Dining (via AppIntent)!'
+    );
+    setTimeout(() => setIntentDialog(null), 3500);
+  };
+
+  const handleTestAppIntentIncome = () => {
+    WidgetBridge.simulateIntentAddIncome(50000, 'Freelance', 'Home Screen Quick Log');
+    setIntentDialog(
+      language === 'ar'
+        ? 'تم تسجيل 50,000 د.ع من عمل حر (عبر AppIntent)!'
+        : 'Logged 50,000 IQD from Freelance (via AppIntent)!'
+    );
+    setTimeout(() => setIntentDialog(null), 3500);
+  };
 
   // Computed financial figures for live widget preview
   const actualBalance = FinancialEngine.actualBalance(transactions);
@@ -509,7 +530,51 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               )}
             </div>
           )}
+
+          {/* Interactive AppIntent Quick Actions Bar (iOS 17+ Native Floating Snippet) */}
+          <div className="pt-3 border-t border-[#E5E5EA] dark:border-[#38383A] space-y-2">
+            <div className="flex items-center justify-between text-[10px] text-[#8E8E93] font-semibold">
+              <span className="flex items-center gap-1">
+                <Smartphone className="h-3 w-3 text-[#007AFF]" />
+                {language === 'ar' ? 'أزرار AppIntent التفاعلية' : 'Interactive AppIntent Buttons'}
+              </span>
+              <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-bold text-green-700 dark:bg-green-950 dark:text-green-300">
+                {language === 'ar' ? 'دون مغادرة الشاشة' : 'No App Launch'}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={handleTestAppIntentExpense}
+                className="flex items-center justify-center gap-1.5 rounded-xl bg-red-500/10 py-2 px-2.5 text-xs font-semibold text-red-600 transition-all hover:bg-red-500/20 active:scale-95 dark:text-red-400"
+              >
+                <span className="h-2 w-2 rounded-full bg-red-500" />
+                <span>{language === 'ar' ? '- تسجيل مصروف' : 'Add Expense'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleTestAppIntentIncome}
+                className="flex items-center justify-center gap-1.5 rounded-xl bg-green-500/10 py-2 px-2.5 text-xs font-semibold text-green-600 transition-all hover:bg-green-500/20 active:scale-95 dark:text-green-400"
+              >
+                <span className="h-2 w-2 rounded-full bg-green-500" />
+                <span>{language === 'ar' ? '+ تسجيل دخل' : 'Add Income'}</span>
+              </button>
+            </div>
+          </div>
         </div>
+
+        {/* Floating AppIntent System Confirmation Toast Banner */}
+        {intentDialog && (
+          <div className="flex items-center justify-between rounded-xl bg-[#1C1C1E] px-3.5 py-2.5 text-xs text-white shadow-xl ring-1 ring-white/10 dark:bg-black">
+            <div className="flex items-center gap-2">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#34C759] text-white">
+                <Check className="h-3 w-3 stroke-[3]" />
+              </span>
+              <span className="font-semibold text-[11px]">{intentDialog}</span>
+            </div>
+            <span className="text-[9px] text-[#8E8E93] uppercase font-mono tracking-wider">AppIntent</span>
+          </div>
+        )}
 
         {/* Sync Action Button */}
         <div className="pt-2 space-y-2">

@@ -1,6 +1,15 @@
 import { TransactionItem, PlanItem } from '../types/finance';
 import { FinancialEngine } from './financialEngine';
 
+export interface PendingWidgetTransaction {
+  id: string;
+  amount: number;
+  category: string;
+  note?: string;
+  type: 'expense' | 'income';
+  date: string;
+}
+
 export type WidgetDisplayMode = 'balance' | 'unallocated' | 'all_plans' | 'single_plan';
 
 export interface WidgetSelectedPlan {
@@ -45,6 +54,7 @@ export class WidgetBridge {
   public static readonly STORAGE_KEY_JSON = 'widget_data_json';
   public static readonly STORAGE_KEY_MODE = 'widget_display_mode';
   public static readonly STORAGE_KEY_PLAN_ID = 'widget_selected_plan_id';
+  public static readonly STORAGE_KEY_PENDING = 'pending_transactions';
 
   /**
    * Get current persisted display mode from localStorage
@@ -285,5 +295,243 @@ export class WidgetBridge {
       return null;
     }
     return null;
+  }
+
+  /**
+   * Retrieve pending transactions queued by Home Screen AppIntents
+   */
+  static async getPendingTransactions(): Promise<PendingWidgetTransaction[]> {
+    const list: PendingWidgetTransaction[] = [];
+
+    // 1. Try native Capacitor bridge plugin
+    try {
+      const capWindow = window as unknown as {
+        Capacitor?: {
+          Plugins?: {
+            WidgetBridge?: {
+              getPendingTransactions: (opts: { suite: string }) => Promise<{ transactions?: PendingWidgetTransaction[] }>;
+            };
+          };
+        };
+      };
+
+      if (capWindow.Capacitor?.Plugins?.WidgetBridge?.getPendingTransactions) {
+        const res = await capWindow.Capacitor.Plugins.WidgetBridge.getPendingTransactions({
+          suite: WidgetBridge.APP_GROUP_SUITE,
+        });
+        if (res?.transactions && Array.isArray(res.transactions)) {
+          list.push(...res.transactions);
+        }
+      } else {
+        const { registerPlugin } = await import('@capacitor/core');
+        const NativeWidget = registerPlugin<{
+          getPendingTransactions: (opts: { suite: string }) => Promise<{ transactions?: PendingWidgetTransaction[] }>;
+        }>('WidgetBridge');
+
+        if (NativeWidget && typeof NativeWidget.getPendingTransactions === 'function') {
+          const res = await NativeWidget.getPendingTransactions({
+            suite: WidgetBridge.APP_GROUP_SUITE,
+          });
+          if (res?.transactions && Array.isArray(res.transactions)) {
+            list.push(...res.transactions);
+          }
+        }
+      }
+    } catch {
+      // Ignore native bridge error in browser
+    }
+
+    // 2. Also check localStorage queue (for simulator / web preview)
+    try {
+      const stored = localStorage.getItem(WidgetBridge.STORAGE_KEY_PENDING);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          // Merge items without duplicates by id
+          for (const item of parsed) {
+            if (!list.some(existing => existing.id === item.id)) {
+              list.push(item);
+            }
+          }
+        }
+      }
+    } catch {
+      // Ignore
+    }
+
+    return list;
+  }
+
+  /**
+   * Clear pending transactions after they have been reconciled into the database
+   */
+  static async clearPendingTransactions(): Promise<void> {
+    // 1. Clear native App Group storage
+    try {
+      const capWindow = window as unknown as {
+        Capacitor?: {
+          Plugins?: {
+            WidgetBridge?: {
+              clearPendingTransactions: (opts: { suite: string }) => Promise<{ success: boolean }>;
+            };
+          };
+        };
+      };
+
+      if (capWindow.Capacitor?.Plugins?.WidgetBridge?.clearPendingTransactions) {
+        await capWindow.Capacitor.Plugins.WidgetBridge.clearPendingTransactions({
+          suite: WidgetBridge.APP_GROUP_SUITE,
+        });
+      } else {
+        const { registerPlugin } = await import('@capacitor/core');
+        const NativeWidget = registerPlugin<{
+          clearPendingTransactions: (opts: { suite: string }) => Promise<{ success: boolean }>;
+        }>('WidgetBridge');
+        if (NativeWidget && typeof NativeWidget.clearPendingTransactions === 'function') {
+          await NativeWidget.clearPendingTransactions({
+            suite: WidgetBridge.APP_GROUP_SUITE,
+          });
+        }
+      }
+    } catch {
+      // Ignore
+    }
+
+    // 2. Clear browser localStorage
+    try {
+      localStorage.removeItem(WidgetBridge.STORAGE_KEY_PENDING);
+    } catch {
+      // Ignore
+    }
+  }
+
+  /**
+   * Atomically fetch and flush pending transactions
+   */
+  static async flushPendingTransactions(): Promise<PendingWidgetTransaction[]> {
+    const list: PendingWidgetTransaction[] = [];
+
+    // 1. Try native atomic flush
+    try {
+      const capWindow = window as unknown as {
+        Capacitor?: {
+          Plugins?: {
+            WidgetBridge?: {
+              flushPendingTransactions: (opts: { suite: string }) => Promise<{ transactions?: PendingWidgetTransaction[] }>;
+            };
+          };
+        };
+      };
+
+      if (capWindow.Capacitor?.Plugins?.WidgetBridge?.flushPendingTransactions) {
+        const res = await capWindow.Capacitor.Plugins.WidgetBridge.flushPendingTransactions({
+          suite: WidgetBridge.APP_GROUP_SUITE,
+        });
+        if (res?.transactions && Array.isArray(res.transactions)) {
+          list.push(...res.transactions);
+        }
+      } else {
+        const { registerPlugin } = await import('@capacitor/core');
+        const NativeWidget = registerPlugin<{
+          flushPendingTransactions: (opts: { suite: string }) => Promise<{ transactions?: PendingWidgetTransaction[] }>;
+        }>('WidgetBridge');
+        if (NativeWidget && typeof NativeWidget.flushPendingTransactions === 'function') {
+          const res = await NativeWidget.flushPendingTransactions({
+            suite: WidgetBridge.APP_GROUP_SUITE,
+          });
+          if (res?.transactions && Array.isArray(res.transactions)) {
+            list.push(...res.transactions);
+          }
+        }
+      }
+    } catch {
+      // Ignore
+    }
+
+    // 2. Drain localStorage queue
+    try {
+      const stored = localStorage.getItem(WidgetBridge.STORAGE_KEY_PENDING);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          for (const item of parsed) {
+            if (!list.some(existing => existing.id === item.id)) {
+              list.push(item);
+            }
+          }
+        }
+        localStorage.removeItem(WidgetBridge.STORAGE_KEY_PENDING);
+      }
+    } catch {
+      // Ignore
+    }
+
+    return list;
+  }
+
+  /**
+   * Simulator helper: Emulate QuickAddExpenseIntent running directly from Home Screen
+   */
+  static simulateIntentAddExpense(amount: number, category: string, note?: string): PendingWidgetTransaction {
+    const newTx: PendingWidgetTransaction = {
+      id: 'tx-intent-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+      amount: Math.abs(amount),
+      category: category || 'Food & Dining',
+      note: note || 'Quick Log from Home Screen Widget',
+      type: 'expense',
+      date: new Date().toISOString(),
+    };
+
+    try {
+      const stored = localStorage.getItem(WidgetBridge.STORAGE_KEY_PENDING);
+      const list: PendingWidgetTransaction[] = stored ? JSON.parse(stored) : [];
+      list.push(newTx);
+      localStorage.setItem(WidgetBridge.STORAGE_KEY_PENDING, JSON.stringify(list));
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('widget-pending-transactions-updated', {
+            detail: { newTx, count: list.length },
+          })
+        );
+      }
+    } catch {
+      // Ignore
+    }
+
+    return newTx;
+  }
+
+  /**
+   * Simulator helper: Emulate QuickAddIncomeIntent running directly from Home Screen
+   */
+  static simulateIntentAddIncome(amount: number, source: string, note?: string): PendingWidgetTransaction {
+    const newTx: PendingWidgetTransaction = {
+      id: 'tx-intent-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+      amount: Math.abs(amount),
+      category: source || 'Salary',
+      note: note || 'Quick Log from Home Screen Widget',
+      type: 'income',
+      date: new Date().toISOString(),
+    };
+
+    try {
+      const stored = localStorage.getItem(WidgetBridge.STORAGE_KEY_PENDING);
+      const list: PendingWidgetTransaction[] = stored ? JSON.parse(stored) : [];
+      list.push(newTx);
+      localStorage.setItem(WidgetBridge.STORAGE_KEY_PENDING, JSON.stringify(list));
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('widget-pending-transactions-updated', {
+            detail: { newTx, count: list.length },
+          })
+        );
+      }
+    } catch {
+      // Ignore
+    }
+
+    return newTx;
   }
 }

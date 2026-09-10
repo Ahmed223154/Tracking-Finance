@@ -10,6 +10,7 @@
 import WidgetKit
 import SwiftUI
 import UIKit
+import AppIntents
 
 // MARK: - Models & Data Structures
 
@@ -263,22 +264,22 @@ public struct FinanceWidgetTimelineProvider: TimelineProvider {
     }
 }
 
-// MARK: - Reusable Quick Actions Strip
+// MARK: - Reusable Quick Actions Strip (Interactive AppIntents)
 
 public struct WidgetQuickActionsStrip: View {
     @Environment(\.colorScheme) var colorScheme
 
     public var body: some View {
         HStack(spacing: 6) {
-            // [ + Expense ] -> myapp://add-expense
-            Link(destination: URL(string: "myapp://add-expense")!) {
-                HStack(spacing: 3) {
+            // Interactive AppIntent - Native Floating Snippet Input directly on Home Screen
+            Button(intent: QuickAddExpenseIntent()) {
+                HStack(spacing: 4) {
                     Image(systemName: "minus.circle.fill")
                         .font(.system(size: 11, weight: .bold))
-                    Text("Expense")
-                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .foregroundColor(Color(red: 1.0, green: 0.23, blue: 0.19))
+                    Text("Add Expense")
+                        .font(.system(size: 10, weight: .semibold))
                 }
-                .foregroundColor(Color(red: 1.0, green: 0.23, blue: 0.19))
                 .frame(maxWidth: .infinity)
                 .frame(height: 28)
                 .background(
@@ -286,16 +287,17 @@ public struct WidgetQuickActionsStrip: View {
                         .fill(Color(red: 1.0, green: 0.23, blue: 0.19).opacity(colorScheme == .dark ? 0.25 : 0.12))
                 )
             }
+            .buttonStyle(.plain)
 
-            // [ + Income ] -> myapp://add-income
-            Link(destination: URL(string: "myapp://add-income")!) {
-                HStack(spacing: 3) {
+            // Interactive AppIntent - Native Floating Snippet Input directly on Home Screen
+            Button(intent: QuickAddIncomeIntent()) {
+                HStack(spacing: 4) {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 11, weight: .bold))
-                    Text("Income")
-                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .foregroundColor(Color(red: 0.20, green: 0.78, blue: 0.35))
+                    Text("Add Income")
+                        .font(.system(size: 10, weight: .semibold))
                 }
-                .foregroundColor(Color(red: 0.20, green: 0.78, blue: 0.35))
                 .frame(maxWidth: .infinity)
                 .frame(height: 28)
                 .background(
@@ -303,6 +305,7 @@ public struct WidgetQuickActionsStrip: View {
                         .fill(Color(red: 0.20, green: 0.78, blue: 0.35).opacity(colorScheme == .dark ? 0.25 : 0.12))
                 )
             }
+            .buttonStyle(.plain)
         }
     }
 }

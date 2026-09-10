@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 // FinanceApp - Personal Finance Management
 // Developer: Ahmed AL KUBAISI (ahmed.mjabbar95@gmail.com)
 // Architecture: Native iOS SwiftUI & SwiftData Architecture + PWA / Capacitor
@@ -50,6 +50,83 @@ function FinanceAppMain() {
   const [isCreatePlanOpen, setIsCreatePlanOpen] = useState(false);
   const [isBudgetsOpen, setIsBudgetsOpen] = useState(false);
   const [isFaceIDOpen, setIsFaceIDOpen] = useState(false);
+
+  // Reconcile pending transactions logged via Home Screen AppIntents
+  const reconcileWidgetTransactions = useCallback(async () => {
+    try {
+      const pending = await WidgetBridge.flushPendingTransactions();
+      if (pending && pending.length > 0) {
+        const newItems: TransactionItem[] = pending.map((p, idx) => ({
+          id: p.id || `tx-intent-${Date.now()}-${idx}`,
+          amount: Math.abs(Number(p.amount)) || 0,
+          currency: 'IQD',
+          type: p.type === 'income' ? 'income' : 'expense',
+          category: p.category || (p.type === 'income' ? 'Salary' : 'Other'),
+          source: p.type === 'income' ? p.category || 'Salary' : '',
+          itemDescription: p.note || (p.type === 'income' ? 'Quick Income' : 'Quick Expense'),
+          notes: p.note ? `${p.note} (via iOS Widget Intent)` : 'Logged via iOS Home Screen Widget Intent',
+          date: p.date ? p.date.split('T')[0] : new Date().toISOString().split('T')[0],
+          createdAt: p.date || new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }));
+
+        setTransactions(prev => {
+          const existingIds = new Set(prev.map(t => t.id));
+          const toAdd = newItems.filter(item => !existingIds.has(item.id));
+          if (toAdd.length === 0) return prev;
+          const merged = [...toAdd, ...prev];
+          StorageService.saveTransactions(merged);
+          return merged;
+        });
+      }
+    } catch {
+      // Ignore
+    }
+  }, []);
+
+  // Poll and reconcile on app start, window focus, visibility change, and custom event
+  useEffect(() => {
+    reconcileWidgetTransactions();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        reconcileWidgetTransactions();
+      }
+    };
+
+    const handleFocus = () => {
+      reconcileWidgetTransactions();
+    };
+
+    const handlePendingUpdated = () => {
+      reconcileWidgetTransactions();
+    };
+
+    window.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('widget-pending-transactions-updated', handlePendingUpdated);
+
+    let capCleanup: (() => void) | undefined;
+    import('@capacitor/app')
+      .then(({ App: CapApp }) => {
+        const listener = CapApp.addListener('appStateChange', state => {
+          if (state.isActive) {
+            reconcileWidgetTransactions();
+          }
+        });
+        capCleanup = () => {
+          listener.then(handle => handle.remove()).catch(() => {});
+        };
+      })
+      .catch(() => {});
+
+    return () => {
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('widget-pending-transactions-updated', handlePendingUpdated);
+      if (capCleanup) capCleanup();
+    };
+  }, [reconcileWidgetTransactions]);
 
   // Sync with App Group UserDefaults / localStorage for iOS Home Screen Widgets
   useEffect(() => {

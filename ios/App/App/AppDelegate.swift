@@ -8,7 +8,10 @@ public class WidgetBridgePlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "WidgetBridgePlugin"
     public let jsName = "WidgetBridge"
     public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "syncWidgetData", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "syncWidgetData", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getPendingTransactions", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "clearPendingTransactions", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "flushPendingTransactions", returnType: CAPPluginReturnPromise)
     ]
 
     @objc func syncWidgetData(_ call: CAPPluginCall) {
@@ -34,6 +37,42 @@ public class WidgetBridgePlugin: CAPPlugin, CAPBridgedPlugin {
             call.resolve(["success": true])
         } else {
             call.reject("Could not access UserDefaults suite: \(suite)")
+        }
+    }
+
+    /// Retrieve pending transactions logged via Home Screen AppIntents
+    @objc func getPendingTransactions(_ call: CAPPluginCall) {
+        let suite = call.getString("suite") ?? "group.com.ahmedalrubaye.financeapp"
+        if let sharedDefaults = UserDefaults(suiteName: suite) {
+            let pending = sharedDefaults.array(forKey: "pending_transactions") as? [[String: Any]] ?? []
+            call.resolve(["transactions": pending])
+        } else {
+            call.resolve(["transactions": []])
+        }
+    }
+
+    /// Clear pending transactions after successful reconciliation
+    @objc func clearPendingTransactions(_ call: CAPPluginCall) {
+        let suite = call.getString("suite") ?? "group.com.ahmedalrubaye.financeapp"
+        if let sharedDefaults = UserDefaults(suiteName: suite) {
+            sharedDefaults.removeObject(forKey: "pending_transactions")
+            sharedDefaults.synchronize()
+            call.resolve(["success": true])
+        } else {
+            call.resolve(["success": false])
+        }
+    }
+
+    /// Atomically read and flush pending transactions
+    @objc func flushPendingTransactions(_ call: CAPPluginCall) {
+        let suite = call.getString("suite") ?? "group.com.ahmedalrubaye.financeapp"
+        if let sharedDefaults = UserDefaults(suiteName: suite) {
+            let pending = sharedDefaults.array(forKey: "pending_transactions") as? [[String: Any]] ?? []
+            sharedDefaults.removeObject(forKey: "pending_transactions")
+            sharedDefaults.synchronize()
+            call.resolve(["transactions": pending])
+        } else {
+            call.resolve(["transactions": []])
         }
     }
 }
