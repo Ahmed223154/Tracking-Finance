@@ -20,9 +20,9 @@ export class DeepLinkService {
     if (!urlStr) return { type: 'unknown', rawUrl: '' };
 
     try {
-      // 1. Custom URL Scheme (e.g. myapp://add-expense, myapp://plan?id=XYZ)
-      if (urlStr.startsWith('myapp://') || urlStr.startsWith('financeapp://')) {
-        const pathPart = urlStr.replace(/^(myapp|financeapp):\/\//, '');
+      // 1. Custom URL Scheme (e.g. myapp://add-expense, myapp://plan?id=XYZ, trackingfinance://add-expense)
+      if (urlStr.startsWith('myapp://') || urlStr.startsWith('financeapp://') || urlStr.startsWith('trackingfinance://')) {
+        const pathPart = urlStr.replace(/^(myapp|financeapp|trackingfinance):\/\//, '');
         const [path, queryString] = pathPart.split('?');
         const params = new URLSearchParams(queryString || '');
 

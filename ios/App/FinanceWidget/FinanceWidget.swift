@@ -5,12 +5,100 @@
 //  Created for FinanceApp (Developer: Ahmed AL KUBAISI)
 //  WidgetKit Extension providing dynamic Small (2x2) and Medium (2x4) Home Screen Widgets
 //  Supports customizable display modes: Total Balance, Unallocated Amount, All Plans, Single Plan
+//  Interactive AppIntents for iOS 17+ with zero-launch floating snippet logging and iOS 14-16 Link fallback.
 //
 
 import WidgetKit
 import SwiftUI
-import UIKit
 import AppIntents
+
+// MARK: - App Intents (iOS 16.0+ / iOS 17.0+)
+
+@available(iOS 16.0, *)
+struct QuickAddExpenseIntent: AppIntent {
+    static var title: LocalizedStringResource = "Quick Log Expense"
+    static var description = IntentDescription("Log an expense directly from the Home Screen.")
+    static var openAppWhenRun: Bool = false
+
+    @Parameter(title: "Amount")
+    var amount: Double?
+
+    @Parameter(title: "Category")
+    var category: String?
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let expenseAmount = try await $amount.requestValue("Enter Amount:")
+        let expenseCategory = try await $category.requestValue("Enter Category:")
+
+        if let defaults = UserDefaults(suiteName: "group.com.ahmedalrubaye.financeapp") {
+            var pending = defaults.array(forKey: "pending_transactions") as? [[String: Any]] ?? []
+            let newTx: [String: Any] = [
+                "id": UUID().uuidString,
+                "amount": expenseAmount,
+                "category": expenseCategory,
+                "type": "expense",
+                "date": ISO8601DateFormatter().string(from: Date())
+            ]
+            pending.append(newTx)
+            defaults.set(pending, forKey: "pending_transactions")
+
+            let currentUnallocated = defaults.double(forKey: "cached_unallocated")
+            defaults.set(max(0, currentUnallocated - expenseAmount), forKey: "cached_unallocated")
+            
+            let currentBalance = defaults.double(forKey: "cached_balance")
+            if currentBalance > 0 {
+                defaults.set(max(0, currentBalance - expenseAmount), forKey: "cached_balance")
+            }
+            defaults.synchronize()
+        }
+
+        WidgetCenter.shared.reloadAllTimelines()
+        return .result(dialog: "Logged \(expenseAmount, format: .currency(code: "IQD")) under \(expenseCategory)")
+    }
+}
+
+@available(iOS 16.0, *)
+struct QuickAddIncomeIntent: AppIntent {
+    static var title: LocalizedStringResource = "Quick Log Income"
+    static var description = IntentDescription("Log income directly from the Home Screen.")
+    static var openAppWhenRun: Bool = false
+
+    @Parameter(title: "Amount")
+    var amount: Double?
+
+    @Parameter(title: "Source")
+    var source: String?
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let incomeAmount = try await $amount.requestValue("Enter Income Amount:")
+        let incomeSource = try await $source.requestValue("Enter Source:")
+
+        if let defaults = UserDefaults(suiteName: "group.com.ahmedalrubaye.financeapp") {
+            var pending = defaults.array(forKey: "pending_transactions") as? [[String: Any]] ?? []
+            let newTx: [String: Any] = [
+                "id": UUID().uuidString,
+                "amount": incomeAmount,
+                "category": incomeSource,
+                "type": "income",
+                "date": ISO8601DateFormatter().string(from: Date())
+            ]
+            pending.append(newTx)
+            defaults.set(pending, forKey: "pending_transactions")
+
+            let currentBalance = defaults.double(forKey: "cached_balance")
+            defaults.set(currentBalance + incomeAmount, forKey: "cached_balance")
+
+            let currentUnallocated = defaults.double(forKey: "cached_unallocated")
+            defaults.set(currentUnallocated + incomeAmount, forKey: "cached_unallocated")
+            defaults.synchronize()
+        }
+
+        WidgetCenter.shared.reloadAllTimelines()
+        return .result(dialog: "Added \(incomeAmount, format: .currency(code: "IQD")) income from \(incomeSource)")
+    }
+}
 
 // MARK: - Models & Data Structures
 
@@ -264,48 +352,80 @@ public struct FinanceWidgetTimelineProvider: TimelineProvider {
     }
 }
 
-// MARK: - Reusable Quick Actions Strip (Interactive AppIntents)
+// MARK: - Reusable Quick Actions Strip (Interactive AppIntents + iOS 14-16 Fallback)
 
 public struct WidgetQuickActionsStrip: View {
     @Environment(\.colorScheme) var colorScheme
 
     public var body: some View {
-        HStack(spacing: 6) {
-            // Interactive AppIntent - Native Floating Snippet Input directly on Home Screen
-            Button(intent: QuickAddExpenseIntent()) {
-                HStack(spacing: 4) {
-                    Image(systemName: "minus.circle.fill")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(Color(red: 1.0, green: 0.23, blue: 0.19))
-                    Text("Add Expense")
-                        .font(.system(size: 10, weight: .semibold))
+        HStack(spacing: 8) {
+            if #available(iOS 17.0, *) {
+                Button(intent: QuickAddExpenseIntent()) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "minus.circle.fill")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(Color(red: 1.0, green: 0.23, blue: 0.19))
+                        Text("Add Expense")
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 28)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color(red: 1.0, green: 0.23, blue: 0.19).opacity(colorScheme == .dark ? 0.25 : 0.12))
+                    )
                 }
-                .frame(maxWidth: .infinity)
-                .frame(height: 28)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color(red: 1.0, green: 0.23, blue: 0.19).opacity(colorScheme == .dark ? 0.25 : 0.12))
-                )
-            }
-            .buttonStyle(.plain)
+                .buttonStyle(.plain)
 
-            // Interactive AppIntent - Native Floating Snippet Input directly on Home Screen
-            Button(intent: QuickAddIncomeIntent()) {
-                HStack(spacing: 4) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(Color(red: 0.20, green: 0.78, blue: 0.35))
-                    Text("Add Income")
-                        .font(.system(size: 10, weight: .semibold))
+                Button(intent: QuickAddIncomeIntent()) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(Color(red: 0.20, green: 0.78, blue: 0.35))
+                        Text("Add Income")
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 28)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color(red: 0.20, green: 0.78, blue: 0.35).opacity(colorScheme == .dark ? 0.25 : 0.12))
+                    )
                 }
-                .frame(maxWidth: .infinity)
-                .frame(height: 28)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color(red: 0.20, green: 0.78, blue: 0.35).opacity(colorScheme == .dark ? 0.25 : 0.12))
-                )
+                .buttonStyle(.plain)
+            } else {
+                Link(destination: URL(string: "trackingfinance://add-expense")!) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "minus.circle.fill")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(Color(red: 1.0, green: 0.23, blue: 0.19))
+                        Text("Add Expense")
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 28)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color(red: 1.0, green: 0.23, blue: 0.19).opacity(colorScheme == .dark ? 0.25 : 0.12))
+                    )
+                }
+
+                Link(destination: URL(string: "trackingfinance://add-income")!) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(Color(red: 0.20, green: 0.78, blue: 0.35))
+                        Text("Add Income")
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 28)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color(red: 0.20, green: 0.78, blue: 0.35).opacity(colorScheme == .dark ? 0.25 : 0.12))
+                    )
+                }
             }
-            .buttonStyle(.plain)
         }
     }
 }
@@ -463,7 +583,7 @@ public struct AllPlansModeWidgetView: View {
                         .foregroundColor(Color(UIColor.secondaryLabel))
                 }
                 Spacer()
-                Link(destination: URL(string: "myapp://plans-dashboard")!) {
+                Link(destination: URL(string: "trackingfinance://plans-dashboard")!) {
                     HStack(spacing: 2) {
                         Text("All")
                             .font(.system(size: 8, weight: .semibold))
@@ -487,7 +607,7 @@ public struct AllPlansModeWidgetView: View {
             } else {
                 VStack(spacing: family == .systemSmall ? 4 : 5) {
                     ForEach(Array(displayedPlans.enumerated()), id: \.element.id) { index, plan in
-                        Link(destination: URL(string: "myapp://plan?id=\(plan.id)")!) {
+                        Link(destination: URL(string: "trackingfinance://plan?id=\(plan.id)")!) {
                             VStack(alignment: .leading, spacing: 2) {
                                 HStack {
                                     Text(plan.name)
