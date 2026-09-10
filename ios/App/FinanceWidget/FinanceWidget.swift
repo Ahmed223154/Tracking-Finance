@@ -1,6 +1,20 @@
 import WidgetKit
 import SwiftUI
 
+// MARK: - iOS 17 Container Background Compatibility Helper
+extension View {
+    @ViewBuilder
+    func widgetBackground(_ backgroundView: some View) -> some View {
+        if #available(iOSApplicationExtension 17.0, *) {
+            containerBackground(for: .widget) {
+                backgroundView
+            }
+        } else {
+            background(backgroundView)
+        }
+    }
+}
+
 struct SimpleEntry: TimelineEntry {
     let date: Date
     let balance: Double
@@ -124,6 +138,7 @@ struct FinanceWidgetEntryView: View {
             }
         }
         .padding(8)
+        .widgetBackground(Color(UIColor.systemBackground))
     }
 }
 
@@ -135,9 +150,11 @@ struct FinanceWidget: Widget {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in
             FinanceWidgetEntryView(entry: entry)
         }
-        .configurationDisplayName("Finance Snapshot")
-        .description("Unified tracking of balance, unallocated amount, and highest priority plan.")
+        .configurationDisplayName("Finance Tracker")
+        .description("Quick balances and transaction logging.")
         .supportedFamilies([.systemSmall, .systemMedium])
+        #if compiler(>=5.9)
         .contentMarginsDisabled()
+        #endif
     }
 }
