@@ -19,6 +19,7 @@ import readmeCode from '../../swiftpm/README.md?raw';
 import financeWidgetCode from '../../ios/App/FinanceWidget/FinanceWidget.swift?raw';
 import addExpenseIntentCode from '../../ios/App/FinanceWidget/AddExpenseIntent.swift?raw';
 import appDelegateCode from '../../ios/App/App/AppDelegate.swift?raw';
+import widgetBridgePluginCode from '../../ios/App/App/WidgetBridgePlugin.m?raw';
 
 export interface SwiftFile {
   path: string;
@@ -145,8 +146,15 @@ export const SWIFT_FILES: SwiftFile[] = [
     path: 'App/AppDelegate.swift',
     name: 'AppDelegate.swift',
     category: 'core',
-    description: 'Capacitor native bridge with minimizeApp() and updateWidgetData live App Group syncing',
+    description: 'Capacitor native bridge with exitToHomeScreen() and updateWidgetData live App Group syncing',
     code: appDelegateCode,
+  },
+  {
+    path: 'App/WidgetBridgePlugin.m',
+    name: 'WidgetBridgePlugin.m',
+    category: 'core',
+    description: 'Objective-C Capacitor plugin macro export for WidgetBridge native methods',
+    code: widgetBridgePluginCode,
   },
   {
     path: 'FinanceWidget/AddExpenseIntent.swift',

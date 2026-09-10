@@ -25,6 +25,7 @@ import { FinancialEngine } from './services/financialEngine';
 import { Smartphone, FileCode2, BookOpen, ShieldCheck } from 'lucide-react';
 import { useI18n, I18nProvider, I18nContext, defaultI18nContext } from './context/I18nContext';
 import { WidgetBridge, syncWidgetData, updateWidgetData } from './services/widgetBridge';
+import { syncToWidget } from './utils/widgetSync';
 import { DeepLinkService } from './services/deepLinkService';
 
 function FinanceAppMain() {
@@ -141,6 +142,16 @@ function FinanceAppMain() {
     const totalBalance = FinancialEngine.actualBalance(transactions);
     const unallocated = FinancialEngine.unallocatedBalance(transactions, plans);
     const avgSavings = FinancialEngine.historicalMonthlyAverageSavings(transactions);
+
+    const priorityOrder: Record<string, number> = { essential: 4, high: 3, medium: 2, low: 1 };
+    const activePlans = plans.filter(p => !p.isCompleted);
+    const priorityPlan = activePlans.sort((a, b) => (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0))[0] || plans[0];
+    const priorityPlanName = priorityPlan ? priorityPlan.name : 'No Active Plan';
+    const planTarget = priorityPlan?.targetAmount || 0;
+    const planAllocated = priorityPlan?.allocatedAmount || 0;
+    const priorityPlanProgress = planTarget > 0 ? Math.min(1.0, Math.max(0.0, planAllocated / planTarget)) : 0.0;
+
+    syncToWidget(totalBalance, unallocated, priorityPlanName, priorityPlanProgress);
     WidgetBridge.syncData(transactions, plans, unallocated, avgSavings, language);
     syncWidgetData(totalBalance, unallocated, plans);
   }, [transactions, plans, language]);
@@ -283,6 +294,16 @@ function FinanceAppMain() {
     const totalBalance = FinancialEngine.actualBalance(updated);
     const unallocated = FinancialEngine.unallocatedBalance(updated, plans);
     const avgSavings = FinancialEngine.historicalMonthlyAverageSavings(updated);
+
+    const priorityOrder: Record<string, number> = { essential: 4, high: 3, medium: 2, low: 1 };
+    const activePlans = plans.filter(p => !p.isCompleted);
+    const priorityPlan = activePlans.sort((a, b) => (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0))[0] || plans[0];
+    const priorityPlanName = priorityPlan ? priorityPlan.name : 'No Active Plan';
+    const planTarget = priorityPlan?.targetAmount || 0;
+    const planAllocated = priorityPlan?.allocatedAmount || 0;
+    const priorityPlanProgress = planTarget > 0 ? Math.min(1.0, Math.max(0.0, planAllocated / planTarget)) : 0.0;
+
+    await syncToWidget(totalBalance, unallocated, priorityPlanName, priorityPlanProgress);
     WidgetBridge.syncData(updated, plans, unallocated, avgSavings, language);
     await syncWidgetData(totalBalance, unallocated, plans);
     setQuickInputModal(prev => ({ ...prev, isOpen: false }));
@@ -627,13 +648,31 @@ function FinanceAppMain() {
       />
 
       {/* Floating Popup Window for Widget Quick Add */}
-      <QuickAddPopup
-        isOpen={quickInputModal.isOpen}
-        initialType={quickInputModal.type}
-        categories={categories}
-        onClose={() => setQuickInputModal(prev => ({ ...prev, isOpen: false }))}
-        onSave={handleQuickAddSave}
-      />
+      {(() => {
+        const curBalance = FinancialEngine.actualBalance(transactions);
+        const curUnallocated = FinancialEngine.unallocatedBalance(transactions, plans);
+        const priorityOrder: Record<string, number> = { essential: 4, high: 3, medium: 2, low: 1 };
+        const activePlans = plans.filter(p => !p.isCompleted);
+        const priorityPlan = activePlans.sort((a, b) => (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0))[0] || plans[0];
+        const planName = priorityPlan ? priorityPlan.name : 'No Active Plan';
+        const planTarget = priorityPlan?.targetAmount || 0;
+        const planAllocated = priorityPlan?.allocatedAmount || 0;
+        const planProgress = planTarget > 0 ? Math.min(1.0, Math.max(0.0, planAllocated / planTarget)) : 0.0;
+
+        return (
+          <QuickAddPopup
+            isOpen={quickInputModal.isOpen}
+            initialType={quickInputModal.type}
+            categories={categories}
+            currentBalance={curBalance}
+            currentUnallocated={curUnallocated}
+            priorityPlanName={planName}
+            priorityPlanProgress={planProgress}
+            onClose={() => setQuickInputModal(prev => ({ ...prev, isOpen: false }))}
+            onSave={handleQuickAddSave}
+          />
+        );
+      })()}
     </div>
   );
 }

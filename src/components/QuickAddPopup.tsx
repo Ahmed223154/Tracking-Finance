@@ -2,12 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { CategoryItem, TransactionItem } from '../types/finance';
 import { X, Check, ArrowDownCircle, ArrowUpCircle, Sparkles, Tag } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
-import { exitToHomeScreen } from '../services/widgetBridge';
+import { syncToWidget, dismissToHome } from '../utils/widgetSync';
 
 export interface QuickAddPopupProps {
   isOpen: boolean;
   initialType: 'expense' | 'income';
   categories: CategoryItem[];
+  currentBalance?: number;
+  currentUnallocated?: number;
+  priorityPlanName?: string;
+  priorityPlanProgress?: number;
   onClose: () => void;
   onSave: (item: Omit<TransactionItem, 'id' | 'createdAt' | 'updatedAt'>) => void;
 }
@@ -44,6 +48,10 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
   isOpen,
   initialType,
   categories,
+  currentBalance = 0,
+  currentUnallocated = 0,
+  priorityPlanName = 'No Active Plan',
+  priorityPlanProgress = 0.0,
   onClose,
   onSave,
 }) => {
@@ -111,7 +119,13 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
   // Exit application to iOS Home Screen on cancel
   const handleCancel = async () => {
     onClose();
-    await exitToHomeScreen();
+    await syncToWidget(
+      currentBalance,
+      currentUnallocated,
+      priorityPlanName,
+      priorityPlanProgress
+    );
+    await dismissToHome();
   };
 
   // Exit application to iOS Home Screen on save
@@ -130,8 +144,19 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
       date: today,
     });
 
+    const isExpense = type === 'expense';
+    const updatedBalance = isExpense ? currentBalance - numericAmount : currentBalance + numericAmount;
+    const updatedUnallocated = isExpense ? currentUnallocated - numericAmount : currentUnallocated + numericAmount;
+
+    await syncToWidget(
+      updatedBalance,
+      updatedUnallocated,
+      priorityPlanName,
+      priorityPlanProgress
+    );
+
     onClose();
-    await exitToHomeScreen();
+    await dismissToHome();
   };
 
   if (!isOpen) return null;

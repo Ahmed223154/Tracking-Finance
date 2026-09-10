@@ -2,53 +2,23 @@ import UIKit
 import Capacitor
 import WidgetKit
 
-// MARK: - Capacitor App Exit Plugin
-@objc(AppExitPlugin)
-public class AppExitPlugin: CAPPlugin, CAPBridgedPlugin {
-    public let identifier = "AppExitPlugin"
-    public let jsName = "AppExit"
-    public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "exitToHomeScreen", returnType: CAPPluginReturnPromise)
-    ]
-
-    @objc func exitToHomeScreen(_ call: CAPPluginCall) {
-        DispatchQueue.main.async {
-            // Suspends the application and returns the user to the SpringBoard Home Screen
-            UIControl().sendAction(#selector(NSXPCConnection.suspend), to: UIApplication.shared, for: nil)
-            call.resolve()
-        }
-    }
-}
-
 // MARK: - Capacitor Widget Bridge Plugin
 @objc(WidgetBridgePlugin)
-public class WidgetBridgePlugin: CAPPlugin, CAPBridgedPlugin {
-    public let identifier = "WidgetBridgePlugin"
-    public let jsName = "WidgetBridge"
-    public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "syncWidgetData", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "updateWidgetData", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "exitToHomeScreen", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "minimizeApp", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "getPendingTransactions", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "clearPendingTransactions", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "flushPendingTransactions", returnType: CAPPluginReturnPromise)
-    ]
+public class WidgetBridgePlugin: CAPPlugin {
 
+    // MARK: - 1. Exit to Home Screen
     @objc func exitToHomeScreen(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
+            // Suspends the application cleanly back to SpringBoard (Home Screen)
             UIControl().sendAction(#selector(NSXPCConnection.suspend), to: UIApplication.shared, for: nil)
             call.resolve()
         }
     }
 
+    // MARK: - 2. Sync Balances & Plans to Widget
     @objc func updateWidgetData(_ call: CAPPluginCall) {
-        guard let balance = call.getDouble("balance"),
-              let unallocated = call.getDouble("unallocated") else {
-            call.reject("Missing balance or unallocated")
-            return
-        }
-
+        let balance = call.getDouble("balance") ?? 0.0
+        let unallocated = call.getDouble("unallocated") ?? 0.0
         let priorityPlanName = call.getString("priorityPlanName") ?? "No Active Plan"
         let priorityPlanProgress = call.getDouble("priorityPlanProgress") ?? 0.0
 
@@ -58,10 +28,13 @@ public class WidgetBridgePlugin: CAPPlugin, CAPBridgedPlugin {
             defaults.set(priorityPlanName, forKey: "cached_priority_plan_name")
             defaults.set(priorityPlanProgress, forKey: "cached_priority_plan_progress")
             defaults.synchronize()
+            
+            // Immediately tell iOS to redraw the widget
+            WidgetCenter.shared.reloadAllTimelines()
+            call.resolve(["success": true])
+        } else {
+            call.reject("Failed to access App Group UserDefaults")
         }
-
-        WidgetCenter.shared.reloadAllTimelines()
-        call.resolve()
     }
 
     @objc func minimizeApp(_ call: CAPPluginCall? = nil) {
