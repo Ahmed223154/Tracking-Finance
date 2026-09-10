@@ -4,6 +4,7 @@ import { ShieldCheck, Tag, ChartBar, FileSpreadsheet, Code2, Moon, Sun, Smartpho
 import { useI18n } from '../../../context/I18nContext';
 import { FinancialEngine } from '../../../services/financialEngine';
 import { WidgetBridge, WidgetDisplayMode } from '../../../services/widgetBridge';
+import { DeepLinkService } from '../../../services/deepLinkService';
 
 interface SettingsTabProps {
   transactions: TransactionItem[];
@@ -531,33 +532,35 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             </div>
           )}
 
-          {/* Interactive AppIntent Quick Actions Bar (iOS 17+ Native Floating Snippet) */}
+          {/* Widget Quick Actions Test Bar (Deep Link Floating Modal) */}
           <div className="pt-3 border-t border-[#E5E5EA] dark:border-[#38383A] space-y-2">
             <div className="flex items-center justify-between text-[10px] text-[#8E8E93] font-semibold">
               <span className="flex items-center gap-1">
                 <Smartphone className="h-3 w-3 text-[#007AFF]" />
-                {language === 'ar' ? 'أزرار AppIntent التفاعلية' : 'Interactive AppIntent Buttons'}
+                {language === 'ar' ? 'اختبار النوافذ العائمة (Quick Add Deep Links)' : 'Test Widget Quick-Add (Deep Links)'}
               </span>
-              <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-bold text-green-700 dark:bg-green-950 dark:text-green-300">
-                {language === 'ar' ? 'دون مغادرة الشاشة' : 'No App Launch'}
+              <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[9px] font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                {language === 'ar' ? 'نافذة عائمة فورية' : 'Floating Popup'}
               </span>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <button
+                id="test-widget-quick-expense"
                 type="button"
-                onClick={handleTestAppIntentExpense}
+                onClick={() => DeepLinkService.triggerDeepLink('trackingfinance://quick-add?type=expense')}
                 className="flex items-center justify-center gap-1.5 rounded-xl bg-red-500/10 py-2 px-2.5 text-xs font-semibold text-red-600 transition-all hover:bg-red-500/20 active:scale-95 dark:text-red-400"
               >
                 <span className="h-2 w-2 rounded-full bg-red-500" />
-                <span>{language === 'ar' ? '- تسجيل مصروف' : 'Add Expense'}</span>
+                <span>{language === 'ar' ? '- نافذة مصروف عائمة' : 'Expense Modal'}</span>
               </button>
               <button
+                id="test-widget-quick-income"
                 type="button"
-                onClick={handleTestAppIntentIncome}
+                onClick={() => DeepLinkService.triggerDeepLink('trackingfinance://quick-add?type=income')}
                 className="flex items-center justify-center gap-1.5 rounded-xl bg-green-500/10 py-2 px-2.5 text-xs font-semibold text-green-600 transition-all hover:bg-green-500/20 active:scale-95 dark:text-green-400"
               >
                 <span className="h-2 w-2 rounded-full bg-green-500" />
-                <span>{language === 'ar' ? '+ تسجيل دخل' : 'Add Income'}</span>
+                <span>{language === 'ar' ? '+ نافذة دخل عائمة' : 'Income Modal'}</span>
               </button>
             </div>
           </div>

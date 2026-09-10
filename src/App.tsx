@@ -17,6 +17,7 @@ import { CreateGoalSheet as CreatePlanSheet } from './components/simulator/modal
 import { GoalDetailSheet as PlanDetailSheet } from './components/simulator/modals/GoalDetailSheet';
 import { BudgetsModal } from './components/simulator/modals/BudgetsModal';
 import { FaceIDModal } from './components/simulator/modals/FaceIDModal';
+import { QuickAddPopup } from './components/simulator/modals/QuickAddPopup';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { CodeExplorer } from './components/code-hub/CodeExplorer';
 import { DeployGuide } from './components/code-hub/DeployGuide';
@@ -44,6 +45,13 @@ function FinanceAppMain() {
   // Modal sheets
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [addInitialType, setAddInitialType] = useState<'expense' | 'income'>('expense');
+  const [quickInputModal, setQuickInputModal] = useState<{
+    isOpen: boolean;
+    type: 'expense' | 'income';
+  }>({
+    isOpen: false,
+    type: 'expense',
+  });
   const [editingTransaction, setEditingTransaction] = useState<TransactionItem | null>(null);
   const [allocatingPlan, setAllocatingPlan] = useState<PlanItem | null>(null);
   const [detailPlan, setDetailPlan] = useState<PlanItem | null>(null);
@@ -135,10 +143,57 @@ function FinanceAppMain() {
     WidgetBridge.syncData(transactions, plans, unallocated, avgSavings, language);
   }, [transactions, plans, language]);
 
+  // Listen for Capacitor appUrlOpen native deep link event
+  useEffect(() => {
+    let removeListener: (() => void) | undefined;
+    import('@capacitor/app')
+      .then(({ App: CapApp }) => {
+        const handleCapUrl = (urlStr: string) => {
+          if (!urlStr) return;
+          if (
+            urlStr.startsWith('trackingfinance://quick-add') ||
+            urlStr.startsWith('financeapp://quick-add') ||
+            urlStr.startsWith('myapp://quick-add')
+          ) {
+            let qType: 'expense' | 'income' = 'expense';
+            try {
+              const urlPart = urlStr.replace(/^[a-zA-Z0-9]+:\/\/[^?]*\?/, '');
+              const params = new URLSearchParams(urlPart);
+              if (params.get('type') === 'income') {
+                qType = 'income';
+              }
+            } catch {
+              if (urlStr.includes('type=income')) qType = 'income';
+            }
+            setActiveMainView('simulator');
+            setQuickInputModal({ isOpen: true, type: qType });
+          }
+        };
+
+        const listenerPromise = CapApp.addListener('appUrlOpen', data => {
+          if (data?.url) {
+            handleCapUrl(data.url);
+          }
+        });
+
+        removeListener = () => {
+          listenerPromise.then(handle => handle.remove()).catch(() => {});
+        };
+      })
+      .catch(() => {});
+
+    return () => {
+      if (removeListener) removeListener();
+    };
+  }, []);
+
   // Deep Linking & iOS 3D Touch Quick Actions Listener
   useEffect(() => {
     const cleanup = DeepLinkService.addListener(action => {
-      if (action.type === 'add-expense') {
+      if (action.type === 'quick-add') {
+        setActiveMainView('simulator');
+        setQuickInputModal({ isOpen: true, type: action.modalType });
+      } else if (action.type === 'add-expense') {
         setActiveMainView('simulator');
         setAddInitialType('expense');
         setIsAddOpen(true);
@@ -210,6 +265,23 @@ function FinanceAppMain() {
       updatedAt: new Date().toISOString(),
     };
     setTransactions(prev => [item, ...prev]);
+  };
+
+  const handleQuickAddSave = (newTx: Omit<TransactionItem, 'id' | 'createdAt' | 'updatedAt'>) => {
+    handleAddTransaction(newTx);
+    const updated: TransactionItem[] = [
+      {
+        ...newTx,
+        id: 'tx-' + Date.now(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      ...transactions,
+    ];
+    const unallocated = FinancialEngine.unallocatedBalance(updated, plans);
+    const avgSavings = FinancialEngine.historicalMonthlyAverageSavings(updated);
+    WidgetBridge.syncData(updated, plans, unallocated, avgSavings, language);
+    setQuickInputModal(prev => ({ ...prev, isOpen: false }));
   };
 
   const handleUpdateTransaction = (updated: TransactionItem) => {
@@ -548,6 +620,15 @@ function FinanceAppMain() {
         isOpen={isFaceIDOpen}
         onSuccess={() => setIsFaceIDOpen(false)}
         onCancel={() => setIsFaceIDOpen(false)}
+      />
+
+      {/* Floating Popup Window for Widget Quick Add */}
+      <QuickAddPopup
+        isOpen={quickInputModal.isOpen}
+        initialType={quickInputModal.type}
+        categories={categories}
+        onClose={() => setQuickInputModal(prev => ({ ...prev, isOpen: false }))}
+        onSave={handleQuickAddSave}
       />
     </div>
   );

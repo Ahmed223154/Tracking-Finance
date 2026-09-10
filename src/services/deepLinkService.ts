@@ -3,6 +3,7 @@ import { App as CapApp } from '@capacitor/app';
 export type DeepLinkAction =
   | { type: 'add-expense' }
   | { type: 'add-income' }
+  | { type: 'quick-add'; modalType: 'expense' | 'income' }
   | { type: 'plans-dashboard' }
   | { type: 'plan-detail'; planId: string }
   | { type: 'unknown'; rawUrl: string };
@@ -26,6 +27,10 @@ export class DeepLinkService {
         const [path, queryString] = pathPart.split('?');
         const params = new URLSearchParams(queryString || '');
 
+        if (path === 'quick-add') {
+          const qType = params.get('type') === 'income' ? 'income' : 'expense';
+          return { type: 'quick-add', modalType: qType };
+        }
         if (path === 'add-expense' || path === 'expense') {
           return { type: 'add-expense' };
         }

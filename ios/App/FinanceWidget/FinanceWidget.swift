@@ -352,79 +352,37 @@ public struct FinanceWidgetTimelineProvider: TimelineProvider {
     }
 }
 
-// MARK: - Reusable Quick Actions Strip (Interactive AppIntents + iOS 14-16 Fallback)
+// MARK: - Reusable Quick Actions Strip (Native Deep-Link Targets for Instant Response)
 
 public struct WidgetQuickActionsStrip: View {
-    @Environment(\.colorScheme) var colorScheme
-
     public var body: some View {
         HStack(spacing: 8) {
-            if #available(iOS 17.0, *) {
-                Button(intent: QuickAddExpenseIntent()) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "minus.circle.fill")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(Color(red: 1.0, green: 0.23, blue: 0.19))
-                        Text("Add Expense")
-                            .font(.system(size: 10, weight: .semibold))
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 28)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color(red: 1.0, green: 0.23, blue: 0.19).opacity(colorScheme == .dark ? 0.25 : 0.12))
-                    )
+            Link(destination: URL(string: "trackingfinance://quick-add?type=expense")!) {
+                HStack(spacing: 4) {
+                    Image(systemName: "minus.circle.fill")
+                        .foregroundColor(.red)
+                    Text("Expense")
+                        .font(.system(size: 11, weight: .bold))
                 }
-                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color.white.opacity(0.15))
+                .cornerRadius(8)
+            }
 
-                Button(intent: QuickAddIncomeIntent()) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(Color(red: 0.20, green: 0.78, blue: 0.35))
-                        Text("Add Income")
-                            .font(.system(size: 10, weight: .semibold))
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 28)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color(red: 0.20, green: 0.78, blue: 0.35).opacity(colorScheme == .dark ? 0.25 : 0.12))
-                    )
+            Link(destination: URL(string: "trackingfinance://quick-add?type=income")!) {
+                HStack(spacing: 4) {
+                    Image(systemName: "plus.circle.fill")
+                        .foregroundColor(.green)
+                    Text("Income")
+                        .font(.system(size: 11, weight: .bold))
                 }
-                .buttonStyle(.plain)
-            } else {
-                Link(destination: URL(string: "trackingfinance://add-expense")!) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "minus.circle.fill")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(Color(red: 1.0, green: 0.23, blue: 0.19))
-                        Text("Add Expense")
-                            .font(.system(size: 10, weight: .semibold))
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 28)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color(red: 1.0, green: 0.23, blue: 0.19).opacity(colorScheme == .dark ? 0.25 : 0.12))
-                    )
-                }
-
-                Link(destination: URL(string: "trackingfinance://add-income")!) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(Color(red: 0.20, green: 0.78, blue: 0.35))
-                        Text("Add Income")
-                            .font(.system(size: 10, weight: .semibold))
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 28)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color(red: 0.20, green: 0.78, blue: 0.35).opacity(colorScheme == .dark ? 0.25 : 0.12))
-                    )
-                }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color.white.opacity(0.15))
+                .cornerRadius(8)
             }
         }
     }
