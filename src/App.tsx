@@ -24,8 +24,8 @@ import { DeployGuide } from './components/code-hub/DeployGuide';
 import { FinancialEngine } from './services/financialEngine';
 import { Smartphone, FileCode2, BookOpen, ShieldCheck } from 'lucide-react';
 import { useI18n, I18nProvider, I18nContext, defaultI18nContext } from './context/I18nContext';
-import { WidgetBridge, syncWidgetData, updateWidgetData } from './services/widgetBridge';
-import { syncToWidget } from './utils/widgetSync';
+import { WidgetBridge, syncWidgetData as syncWidgetBridgeLegacy, updateWidgetData } from './services/widgetBridge';
+import { syncWidgetData, exitAppToHome } from './utils/widgetSync';
 import { DeepLinkService } from './services/deepLinkService';
 
 function FinanceAppMain() {
@@ -151,9 +151,9 @@ function FinanceAppMain() {
     const planAllocated = priorityPlan?.allocatedAmount || 0;
     const priorityPlanProgress = planTarget > 0 ? Math.min(1.0, Math.max(0.0, planAllocated / planTarget)) : 0.0;
 
-    syncToWidget(totalBalance, unallocated, priorityPlanName, priorityPlanProgress);
+    syncWidgetData(totalBalance, unallocated, priorityPlanName, priorityPlanProgress);
     WidgetBridge.syncData(transactions, plans, unallocated, avgSavings, language);
-    syncWidgetData(totalBalance, unallocated, plans);
+    syncWidgetBridgeLegacy(totalBalance, unallocated, plans);
   }, [transactions, plans, language]);
 
   // Listen for Capacitor appUrlOpen native deep link event
@@ -303,9 +303,9 @@ function FinanceAppMain() {
     const planAllocated = priorityPlan?.allocatedAmount || 0;
     const priorityPlanProgress = planTarget > 0 ? Math.min(1.0, Math.max(0.0, planAllocated / planTarget)) : 0.0;
 
-    await syncToWidget(totalBalance, unallocated, priorityPlanName, priorityPlanProgress);
+    await syncWidgetData(totalBalance, unallocated, priorityPlanName, priorityPlanProgress);
     WidgetBridge.syncData(updated, plans, unallocated, avgSavings, language);
-    await syncWidgetData(totalBalance, unallocated, plans);
+    await syncWidgetBridgeLegacy(totalBalance, unallocated, plans);
     setQuickInputModal(prev => ({ ...prev, isOpen: false }));
   };
 

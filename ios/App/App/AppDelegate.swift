@@ -4,14 +4,30 @@ import WidgetKit
 
 // MARK: - Capacitor Widget Bridge Plugin
 @objc(WidgetBridgePlugin)
-public class WidgetBridgePlugin: CAPPlugin {
+public class WidgetBridgePlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "WidgetBridgePlugin"
+    public let jsName = "WidgetBridge"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "exitToHomeScreen", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "updateWidgetData", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "syncWidgetData", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "minimizeApp", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getPendingTransactions", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "clearPendingTransactions", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "flushPendingTransactions", returnType: CAPPluginReturnPromise)
+    ]
 
     // MARK: - 1. Exit to Home Screen
     @objc func exitToHomeScreen(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
-            // Suspends the application cleanly back to SpringBoard (Home Screen)
-            UIControl().sendAction(#selector(NSXPCConnection.suspend), to: UIApplication.shared, for: nil)
-            call.resolve()
+            // Perform private selector directly on UIApplication.shared with fallback
+            let suspendSelector = Selector(("suspend"))
+            if UIApplication.shared.responds(to: suspendSelector) {
+                UIApplication.shared.perform(suspendSelector)
+            } else {
+                UIControl().sendAction(#selector(NSXPCConnection.suspend), to: UIApplication.shared, for: nil)
+            }
+            call.resolve(["success": true])
         }
     }
 
@@ -112,7 +128,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
 
+    var bridge: CAPBridgeProtocol? {
+        return (window?.rootViewController as? CAPBridgeViewController)?.bridge
+    }
+
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // Explicitly register the native WidgetBridgePlugin
+        self.bridge?.registerPluginType(WidgetBridgePlugin.self)
+
         if let shortcutItem = launchOptions?[.shortcutItem] as? UIApplicationShortcutItem {
             DispatchQueue.main.async {
                 _ = self.handleShortcutItem(shortcutItem)

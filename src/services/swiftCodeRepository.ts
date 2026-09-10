@@ -20,6 +20,8 @@ import financeWidgetCode from '../../ios/App/FinanceWidget/FinanceWidget.swift?r
 import addExpenseIntentCode from '../../ios/App/FinanceWidget/AddExpenseIntent.swift?raw';
 import appDelegateCode from '../../ios/App/App/AppDelegate.swift?raw';
 import widgetBridgePluginCode from '../../ios/App/App/WidgetBridgePlugin.m?raw';
+import appEntitlementsCode from '../../ios/App/App/App.entitlements?raw';
+import financeWidgetEntitlementsCode from '../../ios/App/FinanceWidget/FinanceWidget.entitlements?raw';
 
 export interface SwiftFile {
   path: string;
@@ -162,6 +164,20 @@ export const SWIFT_FILES: SwiftFile[] = [
     category: 'widget',
     description: 'Interactive AppIntents for instant zero-launch expense and income logging',
     code: addExpenseIntentCode,
+  },
+  {
+    path: 'App/App.entitlements',
+    name: 'App.entitlements',
+    category: 'manifest',
+    description: 'App Group entitlement configuration for main iOS application container',
+    code: appEntitlementsCode,
+  },
+  {
+    path: 'FinanceWidget/FinanceWidget.entitlements',
+    name: 'FinanceWidget.entitlements',
+    category: 'manifest',
+    description: 'App Group entitlement configuration for WidgetKit extension target',
+    code: financeWidgetEntitlementsCode,
   },
   {
     path: 'README.md',

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { CategoryItem, TransactionItem } from '../types/finance';
 import { X, Check, ArrowDownCircle, ArrowUpCircle, Sparkles, Tag } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
-import { syncToWidget, dismissToHome } from '../utils/widgetSync';
+import { syncWidgetData, exitAppToHome } from '../utils/widgetSync';
 
 export interface QuickAddPopupProps {
   isOpen: boolean;
@@ -116,16 +116,10 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
     inputRef.current?.focus();
   };
 
-  // Exit application to iOS Home Screen on cancel
+  // Exit application to iOS Home Screen on cancel or close button
   const handleCancel = async () => {
     onClose();
-    await syncToWidget(
-      currentBalance,
-      currentUnallocated,
-      priorityPlanName,
-      priorityPlanProgress
-    );
-    await dismissToHome();
+    await exitAppToHome();
   };
 
   // Exit application to iOS Home Screen on save
@@ -148,7 +142,7 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
     const updatedBalance = isExpense ? currentBalance - numericAmount : currentBalance + numericAmount;
     const updatedUnallocated = isExpense ? currentUnallocated - numericAmount : currentUnallocated + numericAmount;
 
-    await syncToWidget(
+    await syncWidgetData(
       updatedBalance,
       updatedUnallocated,
       priorityPlanName,
@@ -156,7 +150,7 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
     );
 
     onClose();
-    await dismissToHome();
+    await exitAppToHome();
   };
 
   if (!isOpen) return null;
