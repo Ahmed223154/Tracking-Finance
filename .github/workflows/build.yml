@@ -38,8 +38,21 @@ jobs:
           fi
           xcodebuild -version
 
-      - name: Build Xcode App Bundle (.app)
+      - name: Build Xcode App and Widget Extension
         run: |
+          # 1. Build the Widget Extension target if scheme exists
+          xcodebuild build \
+            -project ios/App/App.xcodeproj \
+            -scheme FinanceWidget \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath derived_data \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            EXPANDED_CODE_SIGN_IDENTITY="" || true
+
+          # 2. Build the Main App target
           xcodebuild build \
             -project ios/App/App.xcodeproj \
             -scheme App \
@@ -54,11 +67,14 @@ jobs:
       - name: Compile and Embed Native WidgetKit Extension (.appex)
         run: |
           APP_BUNDLE="derived_data/Build/Products/Release-iphoneos/App.app"
+          PRODUCTS_EXT="derived_data/Build/Products/Release-iphoneos/FinanceWidget.appex"
           PLUGINS_DIR="$APP_BUNDLE/PlugIns/FinanceWidget.appex"
           mkdir -p "$PLUGINS_DIR"
+          mkdir -p "$PRODUCTS_EXT"
 
           # 1. Copy Extension Info.plist
           cp ios/App/FinanceWidget/Info.plist "$PLUGINS_DIR/Info.plist"
+          cp ios/App/FinanceWidget/Info.plist "$PRODUCTS_EXT/Info.plist"
 
           # 2. Compile Swift WidgetKit Extension for iOS arm64
           SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
@@ -79,19 +95,47 @@ jobs:
             ios/App/FinanceWidget/FinanceWidget.swift \
             -o "$PLUGINS_DIR/FinanceWidget"
 
+          cp "$PLUGINS_DIR/FinanceWidget" "$PRODUCTS_EXT/FinanceWidget"
+
           # 3. Ad-hoc codesign the extension bundle for on-device resigning tools (SideStore / AltStore)
           codesign --force --sign - "$PLUGINS_DIR"
+          codesign --force --sign - "$PRODUCTS_EXT"
 
-          echo "Listing FinanceWidget.appex contents:"
+          echo "Listing FinanceWidget.appex contents in Products:"
+          ls -la "$PRODUCTS_EXT"
+          echo "Listing FinanceWidget.appex contents in App.app/PlugIns:"
           ls -la "$PLUGINS_DIR"
 
       - name: Package Payload into Sideloadly-Ready .ipa
         run: |
           mkdir -p Payload
           cp -r derived_data/Build/Products/Release-iphoneos/App.app Payload/
-          # Verify PlugIns directory exists inside App.app
-          ls -la Payload/App.app/PlugIns/ || echo "Warning: PlugIns folder missing!"
+          
+          # Ensure PlugIns directory exists inside the App bundle
+          mkdir -p Payload/App.app/PlugIns
+          
+          # Copy the compiled Widget Extension if it was output to Products
+          if [ -d "derived_data/Build/Products/Release-iphoneos/FinanceWidget.appex" ]; then
+            echo "Found FinanceWidget.appex in Products, embedding into PlugIns..."
+            cp -r derived_data/Build/Products/Release-iphoneos/FinanceWidget.appex Payload/App.app/PlugIns/
+          elif [ -d "derived_data/Build/Products/Release-iphoneos/App.app/PlugIns/FinanceWidget.appex" ]; then
+            echo "Found FinanceWidget.appex inside App.app/PlugIns, copying to Payload..."
+            cp -r derived_data/Build/Products/Release-iphoneos/App.app/PlugIns/FinanceWidget.appex Payload/App.app/PlugIns/
+          else
+            echo "Looking for .appex files in derived_data..."
+            find derived_data -name "*.appex" -exec cp -r {} Payload/App.app/PlugIns/ \;
+          fi
+
+          # Apply ad-hoc codesign to extension in Payload
+          if [ -d "Payload/App.app/PlugIns/FinanceWidget.appex" ]; then
+            codesign --force --sign - "Payload/App.app/PlugIns/FinanceWidget.appex"
+          fi
+
+          # Log contents of PlugIns to verify presence in the GitHub log
+          echo "=== PlugIns Contents ==="
+          ls -la Payload/App.app/PlugIns/
           ls -la Payload/App.app/PlugIns/FinanceWidget.appex
+          
           zip -r App.ipa Payload
 
       - name: Upload IPA Artifact
