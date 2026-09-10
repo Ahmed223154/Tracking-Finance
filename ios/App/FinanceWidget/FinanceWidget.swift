@@ -204,22 +204,13 @@ public struct WidgetDataPayload: Codable {
 
     public static var fallback: WidgetDataPayload {
         WidgetDataPayload(
-            totalBalance: 12500.0,
-            unallocatedAmount: 3400.0,
+            totalBalance: 0.0,
+            unallocatedAmount: 0.0,
             currency: "IQD",
-            selectedPlan: WidgetFocusedPlan(
-                name: "Emergency Fund",
-                progress: 0.65,
-                current: 650.0,
-                target: 1000.0
-            ),
-            plans: [
-                WidgetPlanSummary(id: "1", name: "Emergency Fund", progress: 0.65, current: 650.0, target: 1000.0),
-                WidgetPlanSummary(id: "2", name: "Travel Fund", progress: 0.40, current: 400.0, target: 1000.0),
-                WidgetPlanSummary(id: "3", name: "New Car Downpayment", progress: 0.25, current: 250.0, target: 1000.0)
-            ],
-            totalBalanceFormatted: "12,500 IQD",
-            unallocatedAmountFormatted: "3,400 IQD",
+            selectedPlan: nil,
+            plans: [],
+            totalBalanceFormatted: "0 IQD",
+            unallocatedAmountFormatted: "0 IQD",
             lastSyncTimestamp: ISO8601DateFormatter().string(from: Date())
         )
     }
@@ -282,10 +273,10 @@ public class SharedDataBridge {
             basePayload = try? JSONDecoder().decode(WidgetDataPayload.self, from: jsonData)
         }
 
-        let totalBalance = liveBalance ?? basePayload?.totalBalance ?? 12500.0
-        let unallocatedAmount = liveUnallocated ?? basePayload?.unallocatedAmount ?? 3400.0
+        let totalBalance = liveBalance ?? basePayload?.totalBalance ?? 0.0
+        let unallocatedAmount = liveUnallocated ?? basePayload?.unallocatedAmount ?? 0.0
         let currency = basePayload?.currency ?? liveCurrency
-        let plans = !livePlans.isEmpty ? livePlans : (basePayload?.plans ?? WidgetDataPayload.fallback.plans)
+        let plans = !livePlans.isEmpty ? livePlans : (basePayload?.plans ?? [])
 
         // Resolve selected plan
         var selectedPlan: WidgetFocusedPlan? = nil
