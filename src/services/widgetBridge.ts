@@ -1,12 +1,9 @@
 import { TransactionItem, PlanItem } from '../types/finance';
 import { FinancialEngine } from './financialEngine';
-import { registerPlugin } from '@capacitor/core';
-import { WidgetBridge as CapacitorWidgetBridge, WidgetBridgeWeb } from '../utils/widgetSync';
+import { WidgetBridge as CapacitorWidgetBridge } from '../utils/widgetSync';
 
-export const AppExit = registerPlugin<any>('AppExit', {
-  web: () => new WidgetBridgeWeb(),
-});
 export const NativeWidgetBridge = CapacitorWidgetBridge;
+export const AppExit = CapacitorWidgetBridge;
 
 /**
  * Direct App Group sync method sending balance, unallocated, and priority plan
@@ -36,16 +33,8 @@ export const updateWidgetData = async (
  */
 export const exitToHomeScreen = async (): Promise<void> => {
   try {
-    if (AppExit && typeof AppExit.exitToHomeScreen === 'function') {
-      await AppExit.exitToHomeScreen();
-      return;
-    }
     if (NativeWidgetBridge && typeof NativeWidgetBridge.exitToHomeScreen === 'function') {
       await NativeWidgetBridge.exitToHomeScreen();
-      return;
-    }
-    if (NativeWidgetBridge && typeof NativeWidgetBridge.minimizeApp === 'function') {
-      await NativeWidgetBridge.minimizeApp();
       return;
     }
   } catch (err) {
