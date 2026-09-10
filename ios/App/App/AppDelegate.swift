@@ -1,5 +1,42 @@
 import UIKit
 import Capacitor
+import WidgetKit
+
+// MARK: - Capacitor Widget Bridge Plugin
+@objc(WidgetBridgePlugin)
+public class WidgetBridgePlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "WidgetBridgePlugin"
+    public let jsName = "WidgetBridge"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "syncWidgetData", returnType: CAPPluginReturnPromise)
+    ]
+
+    @objc func syncWidgetData(_ call: CAPPluginCall) {
+        let suite = call.getString("suite") ?? "group.com.ahmedalrubaye.financeapp"
+        let displayMode = call.getString("displayMode") ?? "balance"
+        let selectedPlanId = call.getString("selectedPlanId")
+        let dataJson = call.getString("data") ?? "{}"
+
+        if let sharedDefaults = UserDefaults(suiteName: suite) {
+            sharedDefaults.set(displayMode, forKey: "widget_display_mode")
+            if let selectedPlanId = selectedPlanId, !selectedPlanId.isEmpty {
+                sharedDefaults.set(selectedPlanId, forKey: "widget_selected_plan_id")
+            } else {
+                sharedDefaults.removeObject(forKey: "widget_selected_plan_id")
+            }
+            sharedDefaults.set(dataJson, forKey: "widget_data_json")
+            sharedDefaults.set(dataJson, forKey: "finance_widget_data")
+            sharedDefaults.synchronize()
+
+            if #available(iOS 14.0, *) {
+                WidgetCenter.shared.reloadAllTimelines()
+            }
+            call.resolve(["success": true])
+        } else {
+            call.reject("Could not access UserDefaults suite: \(suite)")
+        }
+    }
+}
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
