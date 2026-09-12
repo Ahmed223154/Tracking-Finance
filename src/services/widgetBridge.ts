@@ -1,64 +1,19 @@
 import { TransactionItem, PlanItem } from '../types/finance';
 import { FinancialEngine } from './financialEngine';
-import { WidgetBridge as CapacitorWidgetBridge } from '../utils/widgetSync';
+import { WidgetBridge as CapacitorWidgetBridge, exitAppToHome } from '../utils/widgetSync';
 
 export const NativeWidgetBridge = CapacitorWidgetBridge;
 export const AppExit = CapacitorWidgetBridge;
 
 /**
- * Direct App Group sync method sending balance, unallocated, and priority plan
- */
-export const updateWidgetData = async (
-  balance: number,
-  unallocated: number,
-  priorityPlanName: string = 'No Active Plan',
-  priorityPlanProgress: number = 0.0
-) => {
-  try {
-    if (NativeWidgetBridge && typeof NativeWidgetBridge.updateWidgetData === 'function') {
-      await NativeWidgetBridge.updateWidgetData({
-        balance,
-        unallocated,
-        priorityPlanName,
-        priorityPlanProgress,
-      });
-    }
-  } catch (err) {
-    console.log('[WidgetBridge] updateWidgetData failed or not in native context', err);
-  }
-};
-
-/**
  * Exits the application and returns the user to the iOS SpringBoard Home Screen
  */
-export const exitToHomeScreen = async (): Promise<void> => {
-  try {
-    if (NativeWidgetBridge && typeof NativeWidgetBridge.exitToHomeScreen === 'function') {
-      await NativeWidgetBridge.exitToHomeScreen();
-      return;
-    }
-  } catch (err) {
-    console.log('[AppExit] exitToHomeScreen not available or in web preview', err);
-  }
-};
+export const exitToHomeScreen = exitAppToHome;
+export const minimizeApp = exitAppToHome;
 
-export const minimizeApp = exitToHomeScreen;
-
-export const syncWidgetData = async (balance: number, unallocated: number, plans: any[]) => {
-  // Find highest priority plan
-  const priorityWeight: Record<string, number> = { essential: 4, high: 3, medium: 2, low: 1 };
-  const activePlans = plans.filter(p => !p.isCompleted && !p.isPaused);
-  const highestPriorityPlan = activePlans.sort(
-    (a, b) => (priorityWeight[b.priority] || 0) - (priorityWeight[a.priority] || 0)
-  )[0] || plans[0];
-
-  const priorityPlanName = highestPriorityPlan ? highestPriorityPlan.name : 'No Active Plan';
-  const target = highestPriorityPlan?.targetAmount || highestPriorityPlan?.target || 0;
-  const current = highestPriorityPlan?.allocatedAmount || highestPriorityPlan?.current || 0;
-  const priorityPlanProgress = target > 0 ? Math.min(1.0, Math.max(0.0, current / target)) : 0.0;
-
-  await updateWidgetData(balance, unallocated, priorityPlanName, priorityPlanProgress);
-};
+// Purged legacy background sync methods - retained as lightweight no-ops for backwards compatibility
+export const updateWidgetData = async () => {};
+export const syncWidgetData = async () => {};
 
 export interface PendingWidgetTransaction {
   id: string;
@@ -285,62 +240,6 @@ export class WidgetBridge {
           },
         })
       );
-    }
-
-    // 3. Capacitor-to-Native Bridge Sync
-    try {
-      const capWindow = window as unknown as {
-        Capacitor?: {
-          Plugins?: {
-            WidgetBridge?: {
-              syncWidgetData: (options: {
-                suite: string;
-                displayMode: string;
-                selectedPlanId?: string | null;
-                data: string;
-              }) => Promise<void>;
-            };
-          };
-        };
-      };
-
-      if (capWindow.Capacitor?.Plugins?.WidgetBridge?.syncWidgetData) {
-        await capWindow.Capacitor.Plugins.WidgetBridge.syncWidgetData({
-          suite: WidgetBridge.APP_GROUP_SUITE,
-          displayMode,
-          selectedPlanId: selectedPlanId || '',
-          data: jsonString,
-        });
-      } else {
-        // Try dynamic import of @capacitor/core registerPlugin
-        const { registerPlugin } = await import('@capacitor/core');
-        const NativeWidget = registerPlugin<{
-          syncWidgetData: (opts: {
-            suite: string;
-            displayMode: string;
-            selectedPlanId?: string | null;
-            data: string;
-          }) => Promise<void>;
-        }>('WidgetBridge');
-
-        if (NativeWidget && typeof NativeWidget.syncWidgetData === 'function') {
-          await NativeWidget.syncWidgetData({
-            suite: WidgetBridge.APP_GROUP_SUITE,
-            displayMode,
-            selectedPlanId: selectedPlanId || '',
-            data: jsonString,
-          });
-        }
-      }
-    } catch {
-      // In web simulator or browser preview, native plugin is not bound
-    }
-
-    // Also synchronize live discrete values for direct App Group consumption
-    try {
-      await syncWidgetData(totalBalance, unallocatedAmount, plans);
-    } catch {
-      // Ignore
     }
 
     return payload;

@@ -141,14 +141,14 @@ export const SWIFT_FILES: SwiftFile[] = [
     path: 'FinanceWidget/FinanceWidget.swift',
     name: 'FinanceWidget.swift',
     category: 'widget',
-    description: 'iOS WidgetKit extension with 4 display modes & App Group sync bridge',
+    description: 'Futuristic Quick-Action Command HUD widget with OLED black/glassmorphism design & instant deep-linking',
     code: financeWidgetCode,
   },
   {
     path: 'App/AppDelegate.swift',
     name: 'AppDelegate.swift',
     category: 'core',
-    description: 'Capacitor native bridge with exitToHomeScreen() and updateWidgetData live App Group syncing',
+    description: 'Capacitor native bridge with exitToHomeScreen() and instant deep link URL routing',
     code: appDelegateCode,
   },
   {

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { CategoryItem, TransactionItem } from '../types/finance';
 import { X, Check, ArrowDownCircle, ArrowUpCircle, Sparkles, Tag } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
-import { syncWidgetData, exitAppToHome } from '../utils/widgetSync';
+import { exitAppToHome } from '../utils/widgetSync';
 
 export interface QuickAddPopupProps {
   isOpen: boolean;
@@ -137,17 +137,6 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
       notes: 'Logged via iOS Home Screen Widget Quick Add',
       date: today,
     });
-
-    const isExpense = type === 'expense';
-    const updatedBalance = isExpense ? currentBalance - numericAmount : currentBalance + numericAmount;
-    const updatedUnallocated = isExpense ? currentUnallocated - numericAmount : currentUnallocated + numericAmount;
-
-    await syncWidgetData(
-      updatedBalance,
-      updatedUnallocated,
-      priorityPlanName,
-      priorityPlanProgress
-    );
 
     onClose();
     await exitAppToHome();

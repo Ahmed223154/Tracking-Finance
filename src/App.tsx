@@ -24,8 +24,8 @@ import { DeployGuide } from './components/code-hub/DeployGuide';
 import { FinancialEngine } from './services/financialEngine';
 import { Smartphone, FileCode2, BookOpen, ShieldCheck } from 'lucide-react';
 import { useI18n, I18nProvider, I18nContext, defaultI18nContext } from './context/I18nContext';
-import { WidgetBridge, syncWidgetData as syncWidgetBridgeLegacy, updateWidgetData } from './services/widgetBridge';
-import { syncWidgetState, syncWidgetData, exitAppToHome } from './utils/widgetSync';
+import { WidgetBridge } from './services/widgetBridge';
+import { exitAppToHome } from './utils/widgetSync';
 import { DeepLinkService } from './services/deepLinkService';
 
 function FinanceAppMain() {
@@ -137,25 +137,6 @@ function FinanceAppMain() {
     };
   }, [reconcileWidgetTransactions]);
 
-  // Sync with App Group UserDefaults / localStorage for iOS Home Screen Widgets
-  useEffect(() => {
-    const totalBalance = FinancialEngine.actualBalance(transactions);
-    const unallocated = FinancialEngine.unallocatedBalance(transactions, plans);
-    const avgSavings = FinancialEngine.historicalMonthlyAverageSavings(transactions);
-
-    const priorityOrder: Record<string, number> = { essential: 4, high: 3, medium: 2, low: 1 };
-    const activePlans = plans.filter(p => !p.isCompleted);
-    const priorityPlan = activePlans.sort((a, b) => (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0))[0] || plans[0];
-    const priorityPlanName = priorityPlan ? priorityPlan.name : 'No Active Plan';
-    const planTarget = priorityPlan?.targetAmount || 0;
-    const planAllocated = priorityPlan?.allocatedAmount || 0;
-    const priorityPlanProgress = planTarget > 0 ? Math.min(1.0, Math.max(0.0, planAllocated / planTarget)) : 0.0;
-
-    syncWidgetData(totalBalance, unallocated, priorityPlanName, priorityPlanProgress);
-    WidgetBridge.syncData(transactions, plans, unallocated, avgSavings, language);
-    syncWidgetBridgeLegacy(totalBalance, unallocated, plans);
-  }, [transactions, plans, language]);
-
   // Listen for Capacitor appUrlOpen native deep link event
   useEffect(() => {
     let removeListener: (() => void) | undefined;
@@ -163,7 +144,13 @@ function FinanceAppMain() {
       .then(({ App: CapApp }) => {
         const handleCapUrl = (urlStr: string) => {
           if (!urlStr) return;
-          if (
+          if (urlStr.includes('add-expense') || urlStr.endsWith('add-expense') || urlStr.includes('type=expense')) {
+            setActiveMainView('simulator');
+            setQuickInputModal({ isOpen: true, type: 'expense' });
+          } else if (urlStr.includes('add-income') || urlStr.endsWith('add-income') || urlStr.includes('type=income')) {
+            setActiveMainView('simulator');
+            setQuickInputModal({ isOpen: true, type: 'income' });
+          } else if (
             urlStr.startsWith('trackingfinance://quick-add') ||
             urlStr.startsWith('financeapp://quick-add') ||
             urlStr.startsWith('myapp://quick-add')
@@ -208,12 +195,10 @@ function FinanceAppMain() {
         setQuickInputModal({ isOpen: true, type: action.modalType });
       } else if (action.type === 'add-expense') {
         setActiveMainView('simulator');
-        setAddInitialType('expense');
-        setIsAddOpen(true);
+        setQuickInputModal({ isOpen: true, type: 'expense' });
       } else if (action.type === 'add-income') {
         setActiveMainView('simulator');
-        setAddInitialType('income');
-        setIsAddOpen(true);
+        setQuickInputModal({ isOpen: true, type: 'income' });
       } else if (action.type === 'plans-dashboard') {
         setActiveMainView('simulator');
         setActiveTab(1);
@@ -280,32 +265,8 @@ function FinanceAppMain() {
     setTransactions(prev => [item, ...prev]);
   };
 
-  const handleQuickAddSave = async (newTx: Omit<TransactionItem, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const handleQuickAddSave = (newTx: Omit<TransactionItem, 'id' | 'createdAt' | 'updatedAt'>) => {
     handleAddTransaction(newTx);
-    const updated: TransactionItem[] = [
-      {
-        ...newTx,
-        id: 'tx-' + Date.now(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      ...transactions,
-    ];
-    const totalBalance = FinancialEngine.actualBalance(updated);
-    const unallocated = FinancialEngine.unallocatedBalance(updated, plans);
-    const avgSavings = FinancialEngine.historicalMonthlyAverageSavings(updated);
-
-    const priorityOrder: Record<string, number> = { essential: 4, high: 3, medium: 2, low: 1 };
-    const activePlans = plans.filter(p => !p.isCompleted);
-    const priorityPlan = activePlans.sort((a, b) => (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0))[0] || plans[0];
-    const priorityPlanName = priorityPlan ? priorityPlan.name : 'No Active Plan';
-    const planTarget = priorityPlan?.targetAmount || 0;
-    const planAllocated = priorityPlan?.allocatedAmount || 0;
-    const priorityPlanProgress = planTarget > 0 ? Math.min(1.0, Math.max(0.0, planAllocated / planTarget)) : 0.0;
-
-    await syncWidgetData(totalBalance, unallocated, priorityPlanName, priorityPlanProgress);
-    WidgetBridge.syncData(updated, plans, unallocated, avgSavings, language);
-    await syncWidgetBridgeLegacy(totalBalance, unallocated, plans);
     setQuickInputModal(prev => ({ ...prev, isOpen: false }));
   };
 
@@ -648,31 +609,13 @@ function FinanceAppMain() {
       />
 
       {/* Floating Popup Window for Widget Quick Add */}
-      {(() => {
-        const curBalance = FinancialEngine.actualBalance(transactions);
-        const curUnallocated = FinancialEngine.unallocatedBalance(transactions, plans);
-        const priorityOrder: Record<string, number> = { essential: 4, high: 3, medium: 2, low: 1 };
-        const activePlans = plans.filter(p => !p.isCompleted);
-        const priorityPlan = activePlans.sort((a, b) => (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0))[0] || plans[0];
-        const planName = priorityPlan ? priorityPlan.name : 'No Active Plan';
-        const planTarget = priorityPlan?.targetAmount || 0;
-        const planAllocated = priorityPlan?.allocatedAmount || 0;
-        const planProgress = planTarget > 0 ? Math.min(1.0, Math.max(0.0, planAllocated / planTarget)) : 0.0;
-
-        return (
-          <QuickAddPopup
-            isOpen={quickInputModal.isOpen}
-            initialType={quickInputModal.type}
-            categories={categories}
-            currentBalance={curBalance}
-            currentUnallocated={curUnallocated}
-            priorityPlanName={planName}
-            priorityPlanProgress={planProgress}
-            onClose={() => setQuickInputModal(prev => ({ ...prev, isOpen: false }))}
-            onSave={handleQuickAddSave}
-          />
-        );
-      })()}
+      <QuickAddPopup
+        isOpen={quickInputModal.isOpen}
+        initialType={quickInputModal.type}
+        categories={categories}
+        onClose={() => setQuickInputModal(prev => ({ ...prev, isOpen: false }))}
+        onSave={handleQuickAddSave}
+      />
     </div>
   );
 }

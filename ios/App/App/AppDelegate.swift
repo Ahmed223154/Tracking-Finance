@@ -20,46 +20,6 @@ public class WidgetBridgePlugin: CAPPlugin {
         }
     }
 
-    // MARK: - 2. Universal Widget Data Sync (Writes both individual keys AND JSON)
-    @objc func updateWidgetData(_ call: CAPPluginCall) {
-        let balance = call.getDouble("balance") ?? 0.0
-        let unallocated = call.getDouble("unallocated") ?? 0.0
-        let priorityPlanName = call.getString("priorityPlanName") ?? "No Active Plan"
-        let priorityPlanProgress = call.getDouble("priorityPlanProgress") ?? 0.0
-
-        let suite = "group.com.ahmedalrubaye.financeapp"
-        guard let sharedDefaults = UserDefaults(suiteName: suite) else {
-            NSLog("❌ [WidgetBridge] Failed to open UserDefaults suite: %@", suite)
-            call.reject("Cannot access App Group: \(suite)")
-            return
-        }
-
-        // Write individual keys (used by simplified widget layouts)
-        sharedDefaults.set(balance, forKey: "cached_balance")
-        sharedDefaults.set(unallocated, forKey: "cached_unallocated")
-        sharedDefaults.set(priorityPlanName, forKey: "cached_priority_plan_name")
-        sharedDefaults.set(priorityPlanProgress, forKey: "cached_priority_plan_progress")
-
-        // Also write structured JSON string (in case widget expects JSON model)
-        let payload: [String: Any] = [
-            "balance": balance,
-            "unallocated": unallocated,
-            "priorityPlanName": priorityPlanName,
-            "priorityPlanProgress": priorityPlanProgress
-        ]
-        if let jsonData = try? JSONSerialization.data(withJSONObject: payload, options: []),
-           let jsonString = String(data: jsonData, encoding: .utf8) {
-            sharedDefaults.set(jsonString, forKey: "widget_data_json")
-            sharedDefaults.set(jsonString, forKey: "finance_widget_data")
-        }
-
-        sharedDefaults.synchronize()
-
-        NSLog("✅ [WidgetBridge] Successfully saved balance: %f, unallocated: %f. Reloading timelines...", balance, unallocated)
-        WidgetCenter.shared.reloadAllTimelines()
-        call.resolve(["success": true])
-    }
-
     @objc func minimizeApp(_ call: CAPPluginCall? = nil) {
         DispatchQueue.main.async {
             let selector = Selector(("suspend"))
@@ -70,32 +30,6 @@ public class WidgetBridgePlugin: CAPPlugin {
             }
         }
         call?.resolve(["success": true])
-    }
-
-    @objc func syncWidgetData(_ call: CAPPluginCall) {
-        let suite = call.getString("suite") ?? "group.com.ahmedalrubaye.financeapp"
-        let displayMode = call.getString("displayMode") ?? "balance"
-        let selectedPlanId = call.getString("selectedPlanId")
-        let dataJson = call.getString("data") ?? "{}"
-
-        if let sharedDefaults = UserDefaults(suiteName: suite) {
-            sharedDefaults.set(displayMode, forKey: "widget_display_mode")
-            if let selectedPlanId = selectedPlanId, !selectedPlanId.isEmpty {
-                sharedDefaults.set(selectedPlanId, forKey: "widget_selected_plan_id")
-            } else {
-                sharedDefaults.removeObject(forKey: "widget_selected_plan_id")
-            }
-            sharedDefaults.set(dataJson, forKey: "widget_data_json")
-            sharedDefaults.set(dataJson, forKey: "finance_widget_data")
-            sharedDefaults.synchronize()
-
-            if #available(iOS 14.0, *) {
-                WidgetCenter.shared.reloadAllTimelines()
-            }
-            call.resolve(["success": true])
-        } else {
-            call.reject("Could not access UserDefaults suite: \(suite)")
-        }
     }
 
     /// Retrieve pending transactions logged via Home Screen AppIntents
