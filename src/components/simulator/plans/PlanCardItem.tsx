@@ -68,21 +68,33 @@ export const PlanCardItem: React.FC<PlanCardItemProps> = ({
     { delay: 500 }
   );
 
-  const formattedTargetDate = plan.targetDate
-    ? new Date(plan.targetDate).toLocaleDateString(language === 'ar' ? 'ar-IQ' : 'en-US', {
+  const formattedTargetDate = (() => {
+    if (!plan.targetDate) return language === 'ar' ? 'أفق مفتوح' : 'Open Horizon';
+    try {
+      const d = new Date(plan.targetDate);
+      if (isNaN(d.getTime())) return language === 'ar' ? 'أفق مفتوح' : 'Open Horizon';
+      return d.toLocaleDateString(language === 'ar' ? 'ar-IQ' : 'en-US', {
         month: 'short',
         year: 'numeric',
-      })
-    : language === 'ar'
-    ? 'أفق مفتوح'
-    : 'Open Horizon';
+      });
+    } catch {
+      return language === 'ar' ? 'أفق مفتوح' : 'Open Horizon';
+    }
+  })();
 
-  const formattedForecastDate = analysis.projectedCompletionDate
-    ? new Date(analysis.projectedCompletionDate).toLocaleDateString(language === 'ar' ? 'ar-IQ' : 'en-US', {
+  const formattedForecastDate = (() => {
+    if (!analysis.projectedCompletionDate) return `~${analysis.projectedMonths} ${language === 'ar' ? 'أشهر' : 'mos'}`;
+    try {
+      const d = new Date(analysis.projectedCompletionDate);
+      if (isNaN(d.getTime())) return `~${analysis.projectedMonths} ${language === 'ar' ? 'أشهر' : 'mos'}`;
+      return d.toLocaleDateString(language === 'ar' ? 'ar-IQ' : 'en-US', {
         month: 'short',
         year: 'numeric',
-      })
-    : `~${analysis.projectedMonths} ${language === 'ar' ? 'أشهر' : 'mos'}`;
+      });
+    } catch {
+      return `~${analysis.projectedMonths} ${language === 'ar' ? 'أشهر' : 'mos'}`;
+    }
+  })();
 
   return (
     <div
@@ -126,6 +138,16 @@ export const PlanCardItem: React.FC<PlanCardItemProps> = ({
               >
                 {analysis.statusTitle}
               </span>
+              {plan.steps && plan.steps.length > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-bold text-[#007AFF] dark:bg-blue-950/60 dark:text-blue-300">
+                  {plan.steps.filter(s => s.status === 'completed').length}/{plan.steps.length} {language === 'ar' ? 'مراحل' : 'Steps'}
+                </span>
+              )}
+              {plan.suspendedUntil && new Date(plan.suspendedUntil).getTime() > Date.now() && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300">
+                  ⏸️ {plan.suspendedUntil.split('T')[0]}
+                </span>
+              )}
             </div>
             <h4 className="mt-1 font-bold text-base text-[#1C1C1E] dark:text-white truncate">
               {plan.name}

@@ -24,7 +24,47 @@ export type PlanStatus =
   | 'notFeasible'
   | 'completed'
   | 'paused'
+  | 'suspended'
   | 'upcoming';
+
+export type DependencyType = 'FS' | 'SS' | 'FF' | 'SF';
+
+export type StepStatus = 'not_started' | 'in_progress' | 'completed' | 'stopped' | 'suspended';
+
+export interface StepScheduleAdjustment {
+  previousStartDate: string;
+  newStartDate: string;
+  previousDuration: number;
+  newDuration: number;
+  reason?: string;
+  adjustedAt: string;
+}
+
+export interface StepRelationship {
+  predecessorId: string;
+  type: DependencyType; // FS (Finish-to-Start), SS (Start-to-Start), FF (Finish-to-Finish), SF (Start-to-Finish)
+  lag?: number; // lag in days (positive or negative)
+}
+
+export interface PlanStep {
+  id: string;
+  title: string;
+  targetAmount: number;
+  allocatedAmount: number;
+  progress?: number; // Computed as (allocatedAmount / targetAmount) * 100 (capped at 100%)
+  completedAmount?: number;
+  startDate: string; // YYYY-MM-DD or ISO
+  duration: number; // Duration in days (>= 1)
+  endDate?: string; // computed end date (startDate + duration)
+  predecessors: StepRelationship[];
+  status: StepStatus;
+  suspendedUntil?: string | null; // ISO date or timestamp indicating when a suspended step resumes
+  stoppedAt?: string | null; // Timestamp when step execution was manually halted
+  scheduleHistory?: StepScheduleAdjustment[]; // Audit tracking original vs rescheduled dates
+  notes?: string;
+  order?: number;
+  isCritical?: boolean; // Critical Path flag
+}
 
 export interface PlanItem {
   id: string;
@@ -40,6 +80,9 @@ export interface PlanItem {
   isCompleted: boolean;
   isPaused?: boolean; // Plan Lifecycle: Postpone / Pause
   pausedAt?: string | null;
+  suspendedUntil?: string | null; // Timed Suspension (e.g. ISO string or YYYY-MM-DD)
+  suspensionDurationLabel?: string | null; // e.g. "7 Days", "1 Month", "3 Months", "Custom Date"
+  steps?: PlanStep[]; // Optional Work Breakdown Structure & CPM Activity Steps
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;

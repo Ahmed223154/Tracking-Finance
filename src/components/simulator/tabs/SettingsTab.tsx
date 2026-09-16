@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { TransactionItem, GoalItem, BudgetItem, CategoryItem } from '../../../types/finance';
-import { ShieldCheck, Tag, ChartBar, FileSpreadsheet, Code2, Moon, Sun, Download, Database, Check, Globe, Languages } from 'lucide-react';
+import { ShieldCheck, Tag, ChartBar, FileSpreadsheet, Code2, Moon, Sun, Laptop, Download, Database, Check, Globe, Languages } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { DeepLinkService } from '../../../services/deepLinkService';
+import { ThemeMode, applyTheme } from '../../../utils/theme';
 
 interface SettingsTabProps {
   transactions: TransactionItem[];
@@ -14,8 +15,8 @@ interface SettingsTabProps {
   onOpenBudgets: () => void;
   onAddCategory: (name: string, type: 'income_source' | 'expense_category') => void;
   onDeleteCategory: (name: string, type: 'income_source' | 'expense_category') => void;
-  theme: string;
-  onChangeTheme: (theme: string) => void;
+  theme: ThemeMode | string;
+  onChangeTheme: (theme: ThemeMode) => void;
   onTriggerFaceID: () => void;
 }
 
@@ -339,26 +340,71 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       </div>
 
       {/* Appearance */}
-      <div className="rounded-[24px] border border-[#E5E5EA] bg-white p-5 shadow-sm dark:border-[#3A3A3C] dark:bg-[#2C2C2E]">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-[#8E8E93]">{t.appearanceHeading}</h3>
-        <div className="mt-3 flex rounded-xl bg-[#E5E5EA] p-1 text-xs font-semibold dark:bg-[#1C1C1E]">
+      <div id="appearance-setting-card" className="rounded-[24px] border border-[#E5E5EA] bg-white p-5 shadow-sm dark:border-[#3A3A3C] dark:bg-[#2C2C2E]">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400">
+              {theme === 'dark' ? <Moon className="h-5 w-5" /> : theme === 'light' ? <Sun className="h-5 w-5" /> : <Laptop className="h-5 w-5" />}
+            </div>
+            <div>
+              <h3 className="font-bold text-xs text-[#1C1C1E] dark:text-white">{t.appearanceHeading}</h3>
+              <p className="text-[11px] text-[#8E8E93]">
+                {theme === 'system'
+                  ? (language === 'ar' ? 'يتكيف تلقائياً مع نظام الجهاز' : 'Adapts automatically to OS settings')
+                  : theme === 'dark'
+                  ? (language === 'ar' ? 'الوضع الداكن مفعّل' : 'Dark mode enabled')
+                  : (language === 'ar' ? 'الوضع الفاتح مفعّل' : 'Light mode enabled')}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Segmented Appearance Control */}
+        <div className="mt-3.5 grid grid-cols-3 gap-1 rounded-xl bg-[#E5E5EA] p-1 text-xs font-semibold dark:bg-[#1C1C1E]">
           <button
-            onClick={() => onChangeTheme('system')}
-            className={`flex-1 rounded-lg py-1.5 transition-all ${theme === 'system' ? 'bg-white text-[#1C1C1E] shadow-sm dark:bg-[#2C2C2E] dark:text-white' : 'text-[#8E8E93]'}`}
+            type="button"
+            onClick={() => {
+              applyTheme('light');
+              onChangeTheme('light');
+            }}
+            className={`flex items-center justify-center gap-1.5 rounded-lg py-2 transition-all ${
+              theme === 'light'
+                ? 'bg-white text-[#007AFF] font-bold shadow-sm dark:bg-[#2C2C2E] dark:text-white'
+                : 'text-[#8E8E93] hover:text-[#1C1C1E] dark:hover:text-white'
+            }`}
           >
-            {t.themeSystem}
+            <Sun className={`h-3.5 w-3.5 ${theme === 'light' ? 'text-amber-500' : ''}`} />
+            <span>{t.themeLight}</span>
           </button>
           <button
-            onClick={() => onChangeTheme('light')}
-            className={`flex-1 rounded-lg py-1.5 transition-all ${theme === 'light' ? 'bg-white text-[#1C1C1E] shadow-sm dark:bg-[#2C2C2E] dark:text-white' : 'text-[#8E8E93]'}`}
+            type="button"
+            onClick={() => {
+              applyTheme('dark');
+              onChangeTheme('dark');
+            }}
+            className={`flex items-center justify-center gap-1.5 rounded-lg py-2 transition-all ${
+              theme === 'dark'
+                ? 'bg-white text-[#007AFF] font-bold shadow-sm dark:bg-[#2C2C2E] dark:text-white'
+                : 'text-[#8E8E93] hover:text-[#1C1C1E] dark:hover:text-white'
+            }`}
           >
-            {t.themeLight}
+            <Moon className={`h-3.5 w-3.5 ${theme === 'dark' ? 'text-blue-500 dark:text-blue-400' : ''}`} />
+            <span>{t.themeDark}</span>
           </button>
           <button
-            onClick={() => onChangeTheme('dark')}
-            className={`flex-1 rounded-lg py-1.5 transition-all ${theme === 'dark' ? 'bg-white text-[#1C1C1E] shadow-sm dark:bg-[#2C2C2E] dark:text-white' : 'text-[#8E8E93]'}`}
+            type="button"
+            onClick={() => {
+              applyTheme('system');
+              onChangeTheme('system');
+            }}
+            className={`flex items-center justify-center gap-1.5 rounded-lg py-2 transition-all ${
+              theme === 'system'
+                ? 'bg-white text-[#007AFF] font-bold shadow-sm dark:bg-[#2C2C2E] dark:text-white'
+                : 'text-[#8E8E93] hover:text-[#1C1C1E] dark:hover:text-white'
+            }`}
           >
-            {t.themeDark}
+            <Laptop className="h-3.5 w-3.5" />
+            <span>{t.themeSystem}</span>
           </button>
         </div>
       </div>

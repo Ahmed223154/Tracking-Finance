@@ -1,4 +1,5 @@
 import { TransactionItem, PlanItem, GoalItem, BudgetItem, CategoryItem } from '../types/finance';
+import { getSavedTheme, applyTheme, ThemeMode } from '../utils/theme';
 
 const STORAGE_KEYS = {
   TRANSACTIONS: 'finance_app_transactions_v1',
@@ -125,12 +126,56 @@ export const INITIAL_PLANS: PlanItem[] = [
     targetAmount: 8000000,
     allocatedAmount: 4500000,
     currency: 'IQD',
-    startDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
-    targetDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString(),
+    startDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    targetDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     priority: 'critical',
     plannedMonthlyAmount: 600000,
     planDescription: '6 months of essential living expenses cash cushion',
     isCompleted: false,
+    steps: [
+      {
+        id: 'step-101',
+        title: 'Tier 1: 1-Month Basic Living Reserve',
+        targetAmount: 2000000,
+        allocatedAmount: 2000000,
+        completedAmount: 2000000,
+        startDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        duration: 30,
+        endDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        predecessors: [],
+        status: 'completed',
+        order: 1,
+        isCritical: true,
+      },
+      {
+        id: 'step-102',
+        title: 'Tier 2: 3-Month Essential Security Cushion',
+        targetAmount: 3000000,
+        allocatedAmount: 2500000,
+        completedAmount: 0,
+        startDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        duration: 60,
+        endDate: new Date(Date.now()).toISOString().split('T')[0],
+        predecessors: [{ predecessorId: 'step-101', type: 'FS', lag: 0 }],
+        status: 'in_progress',
+        order: 2,
+        isCritical: true,
+      },
+      {
+        id: 'step-103',
+        title: 'Tier 3: 6-Month Full Runway & Liquidity Guard',
+        targetAmount: 3000000,
+        allocatedAmount: 0,
+        completedAmount: 0,
+        startDate: new Date(Date.now()).toISOString().split('T')[0],
+        duration: 90,
+        endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        predecessors: [{ predecessorId: 'step-102', type: 'FS', lag: 0 }],
+        status: 'not_started',
+        order: 3,
+        isCritical: true,
+      },
+    ],
     createdAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date().toISOString(),
     completedAt: null,
@@ -141,12 +186,87 @@ export const INITIAL_PLANS: PlanItem[] = [
     targetAmount: 18000000,
     allocatedAmount: 6500000,
     currency: 'IQD',
-    startDate: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString(),
-    targetDate: new Date(Date.now() + 300 * 24 * 60 * 60 * 1000).toISOString(),
+    startDate: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    targetDate: new Date(Date.now() + 300 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     priority: 'high',
     plannedMonthlyAmount: 1150000,
     planDescription: 'Down payment for a reliable Toyota RAV4 or Prado',
     isCompleted: false,
+    steps: [
+      {
+        id: 'step-201',
+        title: 'Dealer Deposit & Allocation Booking',
+        targetAmount: 3000000,
+        allocatedAmount: 3000000,
+        completedAmount: 3000000,
+        startDate: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        duration: 20,
+        endDate: new Date(Date.now() - 100 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        predecessors: [],
+        status: 'completed',
+        order: 1,
+        isCritical: true,
+      },
+      {
+        id: 'step-202',
+        title: 'Financing Pre-Approval & Credit Guarantee',
+        targetAmount: 1500000,
+        allocatedAmount: 1500000,
+        completedAmount: 1500000,
+        startDate: new Date(Date.now() - 100 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        duration: 25,
+        endDate: new Date(Date.now() - 75 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        predecessors: [{ predecessorId: 'step-201', type: 'FS', lag: 0 }],
+        status: 'completed',
+        order: 2,
+        isCritical: true,
+      },
+      {
+        id: 'step-203',
+        title: 'Vehicle Shipping, Customs & Port Clearance',
+        targetAmount: 5500000,
+        allocatedAmount: 2000000,
+        completedAmount: 0,
+        startDate: new Date(Date.now() - 70 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        duration: 60,
+        endDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        predecessors: [{ predecessorId: 'step-202', type: 'FS', lag: 5 }],
+        status: 'in_progress',
+        order: 3,
+        isCritical: true,
+      },
+      {
+        id: 'step-204',
+        title: 'Traffic Directorate Registration & Insurance',
+        targetAmount: 2000000,
+        allocatedAmount: 0,
+        completedAmount: 0,
+        startDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        duration: 15,
+        endDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        predecessors: [{ predecessorId: 'step-203', type: 'FS', lag: 0 }],
+        status: 'not_started',
+        order: 4,
+        isCritical: true,
+      },
+      {
+        id: 'step-205',
+        title: 'Showroom Final Handover & Plate Clearance',
+        targetAmount: 6000000,
+        allocatedAmount: 0,
+        completedAmount: 0,
+        startDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        duration: 20,
+        endDate: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        predecessors: [
+          { predecessorId: 'step-204', type: 'FS', lag: 0 },
+          { predecessorId: 'step-202', type: 'FF', lag: 100 },
+        ],
+        status: 'not_started',
+        order: 5,
+        isCritical: true,
+      },
+    ],
     createdAt: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date().toISOString(),
     completedAt: null,
@@ -157,8 +277,8 @@ export const INITIAL_PLANS: PlanItem[] = [
     targetAmount: 4000000,
     allocatedAmount: 4000000,
     currency: 'IQD',
-    startDate: new Date(Date.now() - 150 * 24 * 60 * 60 * 1000).toISOString(),
-    targetDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    startDate: new Date(Date.now() - 150 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    targetDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     priority: 'medium',
     plannedMonthlyAmount: 400000,
     planDescription: 'Flights and hotel accommodation',
@@ -235,7 +355,18 @@ export class StorageService {
     try {
       const plansData = localStorage.getItem(STORAGE_KEYS.PLANS);
       if (plansData) {
-        return JSON.parse(plansData);
+        const parsed: PlanItem[] = JSON.parse(plansData);
+        // Merge initial steps for default sample plans if missing
+        const enriched = parsed.map(item => {
+          if (!item.steps || item.steps.length === 0) {
+            const initMatch = INITIAL_PLANS.find(ip => ip.id === item.id);
+            if (initMatch?.steps && initMatch.steps.length > 0) {
+              return { ...item, steps: initMatch.steps };
+            }
+          }
+          return item;
+        });
+        return enriched;
       }
       // Migrate from legacy goals if present
       const legacyData = localStorage.getItem(STORAGE_KEYS.GOALS_LEGACY);
@@ -324,12 +455,12 @@ export class StorageService {
     localStorage.setItem(STORAGE_KEYS.BIOMETRICS, enabled ? 'true' : 'false');
   }
 
-  static getTheme(): string {
-    return localStorage.getItem(STORAGE_KEYS.THEME) || 'system';
+  static getTheme(): ThemeMode {
+    return getSavedTheme();
   }
 
-  static setTheme(theme: string): void {
-    localStorage.setItem(STORAGE_KEYS.THEME, theme);
+  static setTheme(theme: ThemeMode | string): void {
+    applyTheme(theme as ThemeMode);
   }
 
   static getLanguage(): 'en' | 'ar' {

@@ -33,7 +33,7 @@ interface PlansTabProps {
   goals: PlanItem[];
   transactions: TransactionItem[];
   onOpenCreateGoal: () => void;
-  onOpenAllocate: (plan: PlanItem) => void;
+  onOpenAllocate: (plan: PlanItem, stepId?: string) => void;
   onOpenDetail: (plan: PlanItem) => void;
   onDeletePlan?: (id: string) => void;
   onDeletePlansBatch?: (ids: string[]) => void;

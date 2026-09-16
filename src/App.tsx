@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 // FinanceApp - Personal Finance Management
 // Developer: Ahmed AL KUBAISI (ahmed.mjabbar95@gmail.com)
 // Architecture: Native iOS SwiftUI & SwiftData Architecture + PWA / Capacitor
-import { TransactionItem, PlanItem, BudgetItem, CategoryItem } from './types/finance';
+import { TransactionItem, PlanItem, BudgetItem, CategoryItem, PlanStep } from './types/finance';
 import { StorageService } from './services/storage';
+import { financeStore } from './store/useFinanceStore';
 import { IPhoneFrame } from './components/simulator/IPhoneFrame';
 import { DashboardTab } from './components/simulator/tabs/DashboardTab';
 import { TransactionsTab } from './components/simulator/tabs/TransactionsTab';
@@ -27,6 +28,7 @@ import { useI18n, I18nProvider, I18nContext, defaultI18nContext } from './contex
 import { WidgetBridge } from './services/widgetBridge';
 import { exitAppToHome } from './utils/widgetSync';
 import { DeepLinkService } from './services/deepLinkService';
+import { ThemeMode, applyTheme, getSavedTheme } from './utils/theme';
 
 function FinanceAppMain() {
   const { t, language } = useI18n();
@@ -41,7 +43,7 @@ function FinanceAppMain() {
   const [budgets, setBudgets] = useState<BudgetItem[]>(() => StorageService.loadBudgets());
   const [categories, setCategories] = useState<CategoryItem[]>(() => StorageService.loadCategories());
   const [biometricsEnabled, setBiometricsEnabled] = useState<boolean>(() => StorageService.getBiometrics());
-  const [theme, setTheme] = useState<string>(() => StorageService.getTheme());
+  const [theme, setTheme] = useState<ThemeMode>(() => getSavedTheme());
 
   // Modal sheets
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -55,6 +57,7 @@ function FinanceAppMain() {
   });
   const [editingTransaction, setEditingTransaction] = useState<TransactionItem | null>(null);
   const [allocatingPlan, setAllocatingPlan] = useState<PlanItem | null>(null);
+  const [allocatingStepId, setAllocatingStepId] = useState<string | undefined>(undefined);
   const [detailPlan, setDetailPlan] = useState<PlanItem | null>(null);
   const [isCreatePlanOpen, setIsCreatePlanOpen] = useState(false);
   const [isBudgetsOpen, setIsBudgetsOpen] = useState(false);
@@ -225,6 +228,7 @@ function FinanceAppMain() {
 
   useEffect(() => {
     StorageService.savePlans(plans);
+    financeStore.setPlans(plans);
   }, [plans]);
 
   useEffect(() => {
@@ -240,18 +244,19 @@ function FinanceAppMain() {
   }, [biometricsEnabled]);
 
   useEffect(() => {
-    StorageService.setTheme(theme);
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else if (theme === 'light') {
-      document.documentElement.classList.remove('dark');
-    } else {
-      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
+    applyTheme(theme);
+  }, [theme]);
+
+  // Listen for system/external theme changes
+  useEffect(() => {
+    const handleThemeChanged = (e: Event) => {
+      const customEvent = e as CustomEvent<{ mode: ThemeMode }>;
+      if (customEvent.detail?.mode && customEvent.detail.mode !== theme) {
+        setTheme(customEvent.detail.mode);
       }
-    }
+    };
+    window.addEventListener('app-theme-changed', handleThemeChanged);
+    return () => window.removeEventListener('app-theme-changed', handleThemeChanged);
   }, [theme]);
 
   // Unified Transaction Actions
@@ -292,18 +297,13 @@ function FinanceAppMain() {
 
   // Unified Financial Plans Actions
   const handleCreatePlan = (
-    newPlan: Omit<PlanItem, 'id' | 'createdAt' | 'updatedAt' | 'completedAt' | 'allocatedAmount' | 'isCompleted'>
+    newPlan: Omit<PlanItem, 'id' | 'createdAt' | 'updatedAt' | 'completedAt' | 'allocatedAmount' | 'isCompleted'> & {
+      steps?: PlanStep[];
+    }
   ) => {
-    const item: PlanItem = {
-      ...newPlan,
-      id: 'plan-' + Date.now(),
-      allocatedAmount: 0,
-      isCompleted: false,
-      completedAt: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    setPlans(prev => [item, ...prev]);
+    // Atomic plan creation with initial steps and automatic budget rollup integrity
+    const item = financeStore.createPlan(newPlan);
+    setPlans(prev => [item, ...prev.filter(p => p.id !== item.id)]);
   };
 
   const handleUpdatePlan = (updated: PlanItem) => {
@@ -340,12 +340,16 @@ function FinanceAppMain() {
       prev.map(p => {
         if (p.id === planId) {
           const nextCompleted = !p.isCompleted;
-          return {
+          const updated = {
             ...p,
             isCompleted: nextCompleted,
             completedAt: nextCompleted ? new Date().toISOString() : null,
             updatedAt: new Date().toISOString(),
           };
+          if (detailPlan && detailPlan.id === planId) {
+            setDetailPlan(updated);
+          }
+          return updated;
         }
         return p;
       })
@@ -481,7 +485,10 @@ function FinanceAppMain() {
                   transactions={transactions}
                   initialSubTab={plansSubTab}
                   onOpenCreateGoal={() => setIsCreatePlanOpen(true)}
-                  onOpenAllocate={plan => setAllocatingPlan(plan)}
+                  onOpenAllocate={(plan, stepId) => {
+                    setAllocatingPlan(plan);
+                    setAllocatingStepId(stepId);
+                  }}
                   onOpenDetail={plan => setDetailPlan(plan)}
                   onDeletePlan={handleDeletePlan}
                   onDeletePlansBatch={handleDeletePlansBatch}
@@ -518,7 +525,10 @@ function FinanceAppMain() {
                   onAddCategory={handleAddCategory}
                   onDeleteCategory={handleDeleteCategory}
                   theme={theme}
-                  onChangeTheme={t => setTheme(t)}
+                  onChangeTheme={t => {
+                    setTheme(t);
+                    applyTheme(t);
+                  }}
                   onTriggerFaceID={() => setIsFaceIDOpen(true)}
                 />
               )}
@@ -557,8 +567,12 @@ function FinanceAppMain() {
           <AllocatePlanSheet
             plan={allocatingPlan}
             goal={allocatingPlan}
+            initialStepId={allocatingStepId}
             unallocatedBalance={unallocatedBalance}
-            onClose={() => setAllocatingPlan(null)}
+            onClose={() => {
+              setAllocatingPlan(null);
+              setAllocatingStepId(undefined);
+            }}
             onUpdatePlan={handleUpdatePlan}
             onUpdateGoal={handleUpdatePlan}
           />
@@ -580,8 +594,9 @@ function FinanceAppMain() {
           allGoals={plans}
           allPlans={plans}
           onClose={() => setDetailPlan(null)}
-          onOpenAllocate={() => {
+          onOpenAllocate={(stepId) => {
             setAllocatingPlan(detailPlan);
+            setAllocatingStepId(stepId);
             setDetailPlan(null);
           }}
           onToggleComplete={() => handleToggleCompletePlan(detailPlan.id)}

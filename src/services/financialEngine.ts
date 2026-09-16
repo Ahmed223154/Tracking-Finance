@@ -11,6 +11,43 @@ import {
 } from '../types/finance';
 import { CurrencyFormatter } from './currencyFormatter';
 
+export function safeAddMonthsToDate(baseDate: Date = new Date(), months: number): Date {
+  const d = new Date(baseDate);
+  if (isNaN(d.getTime())) {
+    d.setTime(Date.now());
+  }
+  const safeMonths = (!isFinite(months) || isNaN(months))
+    ? 12
+    : Math.max(-600, Math.min(600, Math.round(months)));
+  d.setMonth(d.getMonth() + safeMonths);
+  if (isNaN(d.getTime())) {
+    return new Date();
+  }
+  return d;
+}
+
+export function safeToISOString(date: Date | string | null | undefined, fallback: string = new Date().toISOString()): string {
+  if (!date) return fallback;
+  if (typeof date === 'string') {
+    const parsed = new Date(date);
+    if (isNaN(parsed.getTime())) return fallback;
+    try {
+      return parsed.toISOString();
+    } catch {
+      return fallback;
+    }
+  }
+  if (date instanceof Date) {
+    if (isNaN(date.getTime())) return fallback;
+    try {
+      return date.toISOString();
+    } catch {
+      return fallback;
+    }
+  }
+  return fallback;
+}
+
 export class FinancialEngine {
   static totalIncome(transactions: TransactionItem[]): number {
     return transactions
@@ -121,10 +158,31 @@ export class FinancialEngine {
         requiredMonthlySavings: 0,
         monthsRemaining: 0,
         varianceMonthly: 0,
-        projectedCompletionDate: plan.completedAt || new Date().toISOString(),
+        projectedCompletionDate: safeToISOString(plan.completedAt),
         projectedMonths: 0,
         milestones,
       };
+    }
+
+    // Timed Suspension: Check if active or elapsed
+    if (plan.suspendedUntil) {
+      const suspDate = new Date(plan.suspendedUntil);
+      if (!isNaN(suspDate.getTime()) && suspDate.getTime() > new Date().getTime()) {
+        const dateStr = plan.suspendedUntil.includes('T') ? plan.suspendedUntil.split('T')[0] : plan.suspendedUntil;
+        return {
+          status: 'suspended',
+          statusTitle: `Suspended (Resumes ${dateStr})`,
+          statusBadgeColor: 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-800',
+          explanation: `Plan is temporarily suspended until ${dateStr}. Monthly savings commitments and automatic fund allocations are frozen.`,
+          requiredMonthlySavings: 0,
+          monthsRemaining: 0,
+          varianceMonthly: 0,
+          projectedCompletionDate: null,
+          projectedMonths: 0,
+          milestones,
+          isPaused: true,
+        };
+      }
     }
 
     // Plan Lifecycle: Postpone / Pause
@@ -152,37 +210,50 @@ export class FinancialEngine {
     // Explicit Start Date Evaluation
     if (plan.startDate) {
       const start = new Date(plan.startDate);
-      const diffMonths = (start.getFullYear() - now.getFullYear()) * 12 + (start.getMonth() - now.getMonth());
-      if (diffMonths > 0) {
-        // Future start date -> Scheduled / Upcoming
-        return {
-          status: 'upcoming',
-          statusTitle: 'Upcoming',
-          statusBadgeColor: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800',
-          explanation: `Scheduled to start in ${diffMonths} ${diffMonths === 1 ? 'month' : 'months'}. Monthly allocation pressure is deferred until start date.`,
-          requiredMonthlySavings: plan.plannedMonthlyAmount || 0,
-          monthsRemaining: plan.targetDate
-            ? Math.max(1, (new Date(plan.targetDate).getFullYear() - start.getFullYear()) * 12 + (new Date(plan.targetDate).getMonth() - start.getMonth()))
-            : 12,
-          varianceMonthly: 0,
-          projectedCompletionDate: plan.targetDate || null,
-          projectedMonths: 0,
-          milestones,
-          isUpcoming: true,
-        };
-      } else {
-        // Past or current start date
-        elapsedMonthsFromStart = Math.max(0, -diffMonths);
-        expectedContributionToDate = (elapsedMonthsFromStart + 1) * (plan.plannedMonthlyAmount || 0);
-        startPacingVariance = (plan.allocatedAmount || 0) - expectedContributionToDate;
+      if (!isNaN(start.getTime())) {
+        const diffMonths = (start.getFullYear() - now.getFullYear()) * 12 + (start.getMonth() - now.getMonth());
+        if (diffMonths > 0) {
+          // Future start date -> Scheduled / Upcoming
+          const targetObj = plan.targetDate ? new Date(plan.targetDate) : null;
+          const isTargetValid = targetObj && !isNaN(targetObj.getTime());
+          const targetRemMonths = isTargetValid
+            ? Math.max(1, (targetObj.getFullYear() - start.getFullYear()) * 12 + (targetObj.getMonth() - start.getMonth()))
+            : 12;
+          return {
+            status: 'upcoming',
+            statusTitle: 'Upcoming',
+            statusBadgeColor: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800',
+            explanation: `Scheduled to start in ${diffMonths} ${diffMonths === 1 ? 'month' : 'months'}. Monthly allocation pressure is deferred until start date.`,
+            requiredMonthlySavings: plan.plannedMonthlyAmount || 0,
+            monthsRemaining: targetRemMonths,
+            varianceMonthly: 0,
+            projectedCompletionDate: plan.targetDate || null,
+            projectedMonths: 0,
+            milestones,
+            isUpcoming: true,
+          };
+        } else {
+          // Past or current start date
+          elapsedMonthsFromStart = Math.max(0, -diffMonths);
+          expectedContributionToDate = (elapsedMonthsFromStart + 1) * (plan.plannedMonthlyAmount || 0);
+          startPacingVariance = (plan.allocatedAmount || 0) - expectedContributionToDate;
+        }
       }
     }
 
-    // No target deadline set
-    if (!plan.targetDate) {
-      const projectedMonths = effectiveCapacity > 0 ? Math.ceil(remainingAmount / effectiveCapacity) : 12;
-      const projDate = new Date();
-      projDate.setMonth(projDate.getMonth() + projectedMonths);
+    // Target Date check
+    const target = plan.targetDate ? new Date(plan.targetDate) : null;
+    const isTargetValid = target ? !isNaN(target.getTime()) : false;
+
+    // No target deadline set or invalid target date
+    if (!plan.targetDate || !isTargetValid || !target) {
+      const effectiveRate = Math.max(
+        10000,
+        plan.plannedMonthlyAmount > 0 ? plan.plannedMonthlyAmount : effectiveCapacity
+      );
+      const projectedMonths = Math.min(360, Math.max(1, Math.ceil(remainingAmount / effectiveRate)));
+      const projDate = safeAddMonthsToDate(new Date(), projectedMonths);
+      const projDateIso = safeToISOString(projDate);
 
       if (unallocatedBalance >= remainingAmount) {
         return {
@@ -193,7 +264,7 @@ export class FinancialEngine {
           requiredMonthlySavings: plan.plannedMonthlyAmount || (remainingAmount / Math.max(1, projectedMonths)),
           monthsRemaining: projectedMonths,
           varianceMonthly: (plan.plannedMonthlyAmount || 0) - (remainingAmount / Math.max(1, projectedMonths)),
-          projectedCompletionDate: projDate.toISOString(),
+          projectedCompletionDate: projDateIso,
           projectedMonths,
           milestones,
           expectedContributionToDate,
@@ -209,7 +280,7 @@ export class FinancialEngine {
           requiredMonthlySavings: plan.plannedMonthlyAmount || (remainingAmount / Math.max(1, projectedMonths)),
           monthsRemaining: projectedMonths,
           varianceMonthly: 0,
-          projectedCompletionDate: projDate.toISOString(),
+          projectedCompletionDate: projDateIso,
           projectedMonths,
           milestones,
           expectedContributionToDate,
@@ -220,16 +291,18 @@ export class FinancialEngine {
     }
 
     // Target Date Provided
-    const target = new Date(plan.targetDate);
     const monthsDiff = (target.getFullYear() - now.getFullYear()) * 12 + (target.getMonth() - now.getMonth());
     const monthsRemaining = Math.max(1, monthsDiff);
     const requiredMonthlySavings = remainingAmount / monthsRemaining;
 
     // Projected timeline based on monthly capacity or planned rate
-    const savingRate = Math.max(1, plan.plannedMonthlyAmount > 0 ? plan.plannedMonthlyAmount : effectiveCapacity);
-    const projectedMonths = Math.ceil(remainingAmount / savingRate);
-    const projDate = new Date();
-    projDate.setMonth(projDate.getMonth() + projectedMonths);
+    const savingRate = Math.max(
+      10000,
+      plan.plannedMonthlyAmount > 0 ? plan.plannedMonthlyAmount : effectiveCapacity
+    );
+    const projectedMonths = Math.min(360, Math.max(1, Math.ceil(remainingAmount / savingRate)));
+    const projDate = safeAddMonthsToDate(new Date(), projectedMonths);
+    const projDateIso = safeToISOString(projDate);
 
     // Variance = Planned monthly allocation vs Required monthly allocation
     const varianceMonthly = (plan.plannedMonthlyAmount || 0) - requiredMonthlySavings;
@@ -244,7 +317,7 @@ export class FinancialEngine {
         requiredMonthlySavings,
         monthsRemaining,
         varianceMonthly,
-        projectedCompletionDate: projDate.toISOString(),
+        projectedCompletionDate: projDateIso,
         projectedMonths,
         milestones,
         expectedContributionToDate,
@@ -260,7 +333,7 @@ export class FinancialEngine {
         requiredMonthlySavings,
         monthsRemaining,
         varianceMonthly,
-        projectedCompletionDate: projDate.toISOString(),
+        projectedCompletionDate: projDateIso,
         projectedMonths,
         milestones,
         expectedContributionToDate,
@@ -278,7 +351,7 @@ export class FinancialEngine {
         monthsRemaining,
         varianceMonthly,
         shortfallMonthly,
-        projectedCompletionDate: projDate.toISOString(),
+        projectedCompletionDate: projDateIso,
         projectedMonths,
         milestones,
         expectedContributionToDate,
@@ -297,7 +370,7 @@ export class FinancialEngine {
         varianceMonthly,
         shortfallMonthly: requiredMonthlySavings - effectiveCapacity,
         extensionMonths,
-        projectedCompletionDate: projDate.toISOString(),
+        projectedCompletionDate: projDateIso,
         projectedMonths,
         milestones,
         expectedContributionToDate,
@@ -317,7 +390,7 @@ export class FinancialEngine {
         varianceMonthly,
         shortfallMonthly,
         extensionMonths,
-        projectedCompletionDate: projDate.toISOString(),
+        projectedCompletionDate: projDateIso,
         projectedMonths,
         milestones,
         expectedContributionToDate,
@@ -345,9 +418,10 @@ export class FinancialEngine {
     const monthlyCapacity = Math.max(0, monthlyIncome - monthlyExpenses);
 
     const now = new Date();
-    // Exclude completed plans, paused plans, and future/upcoming scheduled plans
+    // Exclude completed plans, paused plans, active suspensions, and future/upcoming scheduled plans
     const activePlans = plans.filter(p => {
       if (p.isCompleted || p.isPaused) return false;
+      if (p.suspendedUntil && new Date(p.suspendedUntil).getTime() > now.getTime()) return false;
       if (p.startDate) {
         const s = new Date(p.startDate);
         const diffMonths = (s.getFullYear() - now.getFullYear()) * 12 + (s.getMonth() - now.getMonth());
@@ -529,25 +603,23 @@ export class FinancialEngine {
     const simulatedRemaining = Math.max(0, simulatedTargetAmount - allocated);
 
     const originalRate = Math.max(
-      1,
+      10000,
       plan.plannedMonthlyAmount > 0 ? plan.plannedMonthlyAmount : baseSavingsCapacity
     );
     const totalSimulatedMonthlyRate = Math.max(
-      1,
+      10000,
       simulatedMonthlyAllocation + extraMonthlySavings
     );
 
     // Original projection
-    const originalMonths = Math.ceil(originalRemaining / originalRate);
-    const origDate = new Date();
-    origDate.setMonth(origDate.getMonth() + originalMonths);
-    const originalForecastDate = origDate.toISOString();
+    const originalMonths = Math.min(360, Math.max(1, Math.ceil(originalRemaining / originalRate)));
+    const origDate = safeAddMonthsToDate(new Date(), originalMonths);
+    const originalForecastDate = safeToISOString(origDate);
 
     // Simulated projection
-    const simulatedMonths = Math.ceil(simulatedRemaining / totalSimulatedMonthlyRate);
-    const simDate = new Date();
-    simDate.setMonth(simDate.getMonth() + simulatedMonths);
-    const simulatedForecastDate = simDate.toISOString();
+    const simulatedMonths = Math.min(360, Math.max(1, Math.ceil(simulatedRemaining / totalSimulatedMonthlyRate)));
+    const simDate = safeAddMonthsToDate(new Date(), simulatedMonths);
+    const simulatedForecastDate = safeToISOString(simDate);
 
     // Months difference (positive = finished earlier)
     const monthsDifference = originalMonths - simulatedMonths;
@@ -571,11 +643,14 @@ export class FinancialEngine {
     } else if (targetToEvaluate) {
       const now = new Date();
       const targetObj = new Date(targetToEvaluate);
-      const monthsToTarget = Math.max(
-        1,
-        (targetObj.getFullYear() - now.getFullYear()) * 12 +
-          (targetObj.getMonth() - now.getMonth())
-      );
+      const isTargetValid = !isNaN(targetObj.getTime());
+      const monthsToTarget = isTargetValid
+        ? Math.max(
+            1,
+            (targetObj.getFullYear() - now.getFullYear()) * 12 +
+              (targetObj.getMonth() - now.getMonth())
+          )
+        : 12;
       requiredMonthlySavings = simulatedRemaining / monthsToTarget;
       varianceMonthly = totalSimulatedMonthlyRate - requiredMonthlySavings;
 

@@ -3,6 +3,10 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import { I18nProvider } from './context/I18nContext';
 import './index.css';
+import { initTheme } from './utils/theme';
+
+// Initialize theme immediately before the UI mounts to prevent white flash
+initTheme();
 
 // PWA Service Worker Registration & Auto Cache Invalidation
 if ('serviceWorker' in navigator) {

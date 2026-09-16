@@ -19,8 +19,11 @@ import {
   ChevronRight,
   Wallet,
   CalendarDays,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
+import { PlanStepsList } from './PlanStepsList';
 
 interface WhatIfSimulatorViewProps {
   plans: PlanItem[];
@@ -28,7 +31,7 @@ interface WhatIfSimulatorViewProps {
   unallocatedBalance: number;
   avgSavings: number;
   monthlyCapacity: number;
-  onOpenAllocate?: (plan: PlanItem) => void;
+  onOpenAllocate?: (plan: PlanItem, stepId?: string) => void;
   onOpenDetail?: (plan: PlanItem) => void;
 }
 
@@ -45,6 +48,7 @@ export const WhatIfSimulatorView: React.FC<WhatIfSimulatorViewProps> = ({
 
   const activePlans = useMemo(() => plans.filter(p => !p.isCompleted), [plans]);
   const [selectedPlanId, setSelectedPlanId] = useState<string>(activePlans[0]?.id || '');
+  const [showStepsBreakdown, setShowStepsBreakdown] = useState(true);
 
   // Keep selected plan valid if plans change
   const currentPlan = useMemo(() => {
@@ -57,12 +61,14 @@ export const WhatIfSimulatorView: React.FC<WhatIfSimulatorViewProps> = ({
     if (currentPlan.targetDate) {
       const now = new Date();
       const target = new Date(currentPlan.targetDate);
-      const diff = (target.getFullYear() - now.getFullYear()) * 12 + (target.getMonth() - now.getMonth());
-      return Math.max(1, diff);
+      if (!isNaN(target.getTime())) {
+        const diff = (target.getFullYear() - now.getFullYear()) * 12 + (target.getMonth() - now.getMonth());
+        return Math.max(1, Math.min(360, diff));
+      }
     }
     const remaining = Math.max(0, currentPlan.targetAmount - (currentPlan.allocatedAmount || 0));
-    const rate = Math.max(1, currentPlan.plannedMonthlyAmount || monthlyCapacity || 100000);
-    return Math.max(1, Math.ceil(remaining / rate));
+    const rate = Math.max(10000, currentPlan.plannedMonthlyAmount || monthlyCapacity || 100000);
+    return Math.max(1, Math.min(360, Math.ceil(remaining / rate)));
   }, [currentPlan, monthlyCapacity]);
 
   // Plan's baseline monthly rate
@@ -98,9 +104,15 @@ export const WhatIfSimulatorView: React.FC<WhatIfSimulatorViewProps> = ({
   const simResult = useMemo(() => {
     if (!currentPlan) return null;
     const simTarget = Math.max(currentPlan.allocatedAmount, currentPlan.targetAmount - lumpSum);
+    const validTimelineMonths = Math.min(360, Math.max(1, Number(timelineMonths) || 12));
     const simDate = new Date();
-    simDate.setMonth(simDate.getMonth() + timelineMonths);
-    const simTargetDateIso = simDate.toISOString();
+    simDate.setMonth(simDate.getMonth() + validTimelineMonths);
+    let simTargetDateIso = new Date().toISOString();
+    try {
+      simTargetDateIso = simDate.toISOString();
+    } catch {
+      simTargetDateIso = new Date().toISOString();
+    }
 
     return FinancialEngine.calculateIndividualPlanWhatIf(
       currentPlan,
@@ -119,13 +131,20 @@ export const WhatIfSimulatorView: React.FC<WhatIfSimulatorViewProps> = ({
     return [25, 50, 75, 100].map(pct => {
       const milestoneAmount = (targetNet * pct) / 100;
       const needed = Math.max(0, milestoneAmount - currentPlan.allocatedAmount);
-      const months = Math.ceil(needed / Math.max(1, simResult.totalSimulatedMonthlyRate));
+      const safeMonthlyRate = Math.max(10000, simResult.totalSimulatedMonthlyRate);
+      const months = Math.min(360, Math.max(0, Math.ceil(needed / safeMonthlyRate)));
       const targetDate = new Date();
       targetDate.setMonth(targetDate.getMonth() + months);
+      let targetDateIso = new Date().toISOString();
+      try {
+        targetDateIso = targetDate.toISOString();
+      } catch {
+        targetDateIso = new Date().toISOString();
+      }
       return {
         percentage: pct,
         amount: milestoneAmount,
-        targetDate: targetDate.toISOString(),
+        targetDate: targetDateIso,
       };
     });
   }, [simResult, currentPlan, lumpSum]);
@@ -203,12 +222,21 @@ export const WhatIfSimulatorView: React.FC<WhatIfSimulatorViewProps> = ({
   ];
 
   // Calculated date for timeline sub-label
+  const validTimelineMonths = Math.min(360, Math.max(1, Number(timelineMonths) || 12));
   const computedTargetDate = new Date();
-  computedTargetDate.setMonth(computedTargetDate.getMonth() + timelineMonths);
-  const formattedSimTargetDate = computedTargetDate.toLocaleDateString(
-    language === 'ar' ? 'ar-IQ' : 'en-US',
-    { month: 'short', year: 'numeric' }
-  );
+  computedTargetDate.setMonth(computedTargetDate.getMonth() + validTimelineMonths);
+  let formattedSimTargetDate = '';
+  try {
+    formattedSimTargetDate = computedTargetDate.toLocaleDateString(
+      language === 'ar' ? 'ar-IQ' : 'en-US',
+      { month: 'short', year: 'numeric' }
+    );
+  } catch {
+    formattedSimTargetDate = new Date().toLocaleDateString(
+      language === 'ar' ? 'ar-IQ' : 'en-US',
+      { month: 'short', year: 'numeric' }
+    );
+  }
 
   // Financial capacity buffer calculation
   const totalSimulatedAllocation = simResult?.totalSimulatedMonthlyRate || monthlyAllocation;
@@ -582,6 +610,40 @@ export const WhatIfSimulatorView: React.FC<WhatIfSimulatorViewProps> = ({
               ))}
             </div>
           </div>
+
+          {/* Activity Steps Breakdown & Granular Allocation */}
+          {currentPlan && currentPlan.steps && currentPlan.steps.length > 0 && (
+            <div className="rounded-2xl border border-[#E5E5EA] bg-[#F9F9FB] p-3.5 dark:border-[#38383A] dark:bg-[#202022] space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#8E8E93]">
+                    {language === 'ar' ? 'المراحل والتمويل المباشر' : 'Activity Steps & Funding'}
+                  </span>
+                  <span className="rounded-full bg-blue-100 px-1.5 py-0.2 text-[9px] font-bold text-[#007AFF] dark:bg-blue-950 dark:text-blue-300">
+                    {currentPlan.steps.length} {language === 'ar' ? 'مراحل' : 'steps'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowStepsBreakdown(!showStepsBreakdown)}
+                  className="flex items-center gap-1 text-[11px] font-bold text-[#007AFF] hover:underline"
+                >
+                  <span>{showStepsBreakdown ? (language === 'ar' ? 'إخفاء' : 'Hide') : (language === 'ar' ? 'عرض' : 'Show')}</span>
+                  {showStepsBreakdown ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+
+              {showStepsBreakdown && (
+                <PlanStepsList
+                  steps={currentPlan.steps}
+                  plan={currentPlan}
+                  currency={currentPlan.currency || 'IQD'}
+                  readOnly={true}
+                  onOpenAllocate={(stepId) => onOpenAllocate?.(currentPlan, stepId)}
+                />
+              )}
+            </div>
+          )}
 
           {/* Action Button Links */}
           <div className="flex gap-2 pt-2">
