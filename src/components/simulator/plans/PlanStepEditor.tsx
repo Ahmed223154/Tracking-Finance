@@ -69,35 +69,42 @@ export const PlanStepEditor: React.FC<PlanStepEditorProps> = ({
         </div>
       </div>
 
-      {/* Start Date & Duration Grid Layout (Resolved Collisions) */}
-      <div className="grid grid-cols-2 gap-3 w-full">
+      {/* Start Date & Duration Grid Layout (Strict Column Grid - Prevents Input Overlap) */}
+      <div className="grid grid-cols-[1fr_120px] gap-3 w-full box-border">
+        {/* 1. Start Date (Takes flexible remaining space) */}
         <div className="flex flex-col min-w-0">
-          <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+          <label className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5 truncate">
             {language === 'ar' ? 'تاريخ البدء' : 'Start Date'}
           </label>
-          <input
-            type="date"
-            value={step.startDate}
-            onChange={e => onUpdateField({ startDate: e.target.value })}
-            className="w-full h-11 px-3 bg-white dark:bg-zinc-900/80 border border-[#D1D1D6] dark:border-zinc-700/60 rounded-xl text-sm text-[#1C1C1E] dark:text-white focus:outline-none focus:border-cyan-500 truncate"
-          />
+          <div className="relative w-full">
+            <input
+              type="date"
+              value={step.startDate || ''}
+              onChange={e => onUpdateField({ startDate: e.target.value })}
+              className="w-full h-11 px-3 bg-white dark:bg-zinc-900/90 border border-[#D1D1D6] dark:border-zinc-700/70 rounded-xl text-sm text-[#1C1C1E] dark:text-zinc-100 focus:outline-none focus:border-cyan-500 box-border truncate"
+            />
+          </div>
         </div>
 
-        <div className="flex flex-col min-w-0">
-          <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-            {language === 'ar' ? 'المدة (أيام)' : 'Duration (Days)'}
+        {/* 2. Duration (Compact fixed width: 120px) */}
+        <div className="flex flex-col w-[120px] shrink-0">
+          <label className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5 truncate">
+            {language === 'ar' ? 'المدة (أيام)' : 'Duration (d)'}
           </label>
-          <input
-            type="number"
-            min="1"
-            value={step.duration}
-            onChange={e =>
-              onUpdateField({
-                duration: Math.max(1, parseInt(e.target.value, 10) || 1),
-              })
-            }
-            className="w-full h-11 px-3 bg-white dark:bg-zinc-900/80 border border-[#D1D1D6] dark:border-zinc-700/60 rounded-xl text-sm text-[#1C1C1E] dark:text-white focus:outline-none focus:border-cyan-500"
-          />
+          <div className="relative w-full">
+            <input
+              type="number"
+              min="1"
+              value={step.duration || ''}
+              onChange={e =>
+                onUpdateField({
+                  duration: Math.max(1, parseInt(e.target.value, 10) || 1),
+                })
+              }
+              placeholder="Days"
+              className="w-full h-11 px-3 bg-white dark:bg-zinc-900/90 border border-[#D1D1D6] dark:border-zinc-700/70 rounded-xl text-sm text-[#1C1C1E] dark:text-zinc-100 text-center focus:outline-none focus:border-cyan-500 box-border"
+            />
+          </div>
         </div>
       </div>
 
