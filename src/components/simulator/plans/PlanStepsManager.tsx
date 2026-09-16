@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { AmountInput } from '../AmountInput';
 import { formatAmountInput, parseRawAmount } from '../../../services/currencyFormatter';
+import { PlanStepEditor } from './PlanStepEditor';
 
 interface PlanStepsManagerProps {
   steps: PlanStep[];
@@ -253,22 +254,31 @@ export const PlanStepsManager: React.FC<PlanStepsManagerProps> = ({
     setRescheduleReason('');
   };
 
-  const handleAddPredecessor = (targetStepId: string) => {
-    if (!newRelPredecessorId || newRelPredecessorId === targetStepId) return;
+  const handleAddPredecessor = (
+    targetStepId: string,
+    predId?: string,
+    type?: DependencyType,
+    lag?: number
+  ) => {
+    const selectedPredId = predId || newRelPredecessorId;
+    const selectedType = type || newRelType;
+    const selectedLag = lag !== undefined ? lag : Number(newRelLag) || 0;
+
+    if (!selectedPredId || selectedPredId === targetStepId) return;
 
     const targetStep = steps.find(s => s.id === targetStepId);
     if (!targetStep) return;
 
     // Avoid duplicate predecessor
-    const exists = targetStep.predecessors.some(r => r.predecessorId === newRelPredecessorId);
+    const exists = targetStep.predecessors.some(r => r.predecessorId === selectedPredId);
     if (exists) return;
 
     const newPreds: StepRelationship[] = [
       ...targetStep.predecessors,
       {
-        predecessorId: newRelPredecessorId,
-        type: newRelType,
-        lag: Number(newRelLag) || 0,
+        predecessorId: selectedPredId,
+        type: selectedType,
+        lag: selectedLag,
       },
     ];
 
@@ -433,178 +443,253 @@ export const PlanStepsManager: React.FC<PlanStepsManagerProps> = ({
                   : 'border-[#E5E5EA] bg-white dark:border-[#3A3A3C] dark:bg-[#222326]'
               }`}
             >
-              {/* Main Step Row Header */}
-              <div className="flex items-center justify-between p-3 gap-2">
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  {/* Status Toggle Button */}
-                  <button
-                    type="button"
-                    onClick={() => handleToggleStatus(step)}
-                    className="p-0.5 text-zinc-400 hover:text-[#007AFF] transition-colors shrink-0"
-                    title={
-                      isStopped
-                        ? language === 'ar'
-                          ? 'متوقفة - انقر للاستئناف'
-                          : 'Stopped - Click to resume'
-                        : isSuspended
-                        ? language === 'ar'
-                          ? `معلقة حتى ${step.suspendedUntil} - انقر للاستئناف`
-                          : `Suspended until ${step.suspendedUntil} - Click to resume`
-                        : isDone
-                        ? language === 'ar'
-                          ? 'مكتملة وممولة بالكامل'
-                          : 'Completed & Fully Funded'
-                        : isInProgress
-                        ? language === 'ar'
-                          ? 'قيد التنفيذ'
-                          : 'In Progress'
-                        : language === 'ar'
-                        ? 'لم تبدأ'
-                        : 'Not Started'
-                    }
-                  >
-                    {isDone ? (
-                      <CheckCircle2 className="h-5 w-5 text-[#34C759]" />
-                    ) : isStopped ? (
-                      <Pause className="h-5 w-5 text-amber-500 fill-amber-500/20" />
-                    ) : isSuspended ? (
-                      <Clock className="h-5 w-5 text-purple-500" />
-                    ) : isInProgress ? (
-                      <PlayCircle className="h-5 w-5 text-[#007AFF]" />
-                    ) : (
-                      <Circle className="h-5 w-5 text-zinc-400" />
-                    )}
-                  </button>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[10px] font-bold text-[#8E8E93]">#{idx + 1}</span>
-                      <h5
-                        className={`text-xs font-bold truncate ${
-                          isDone
-                            ? 'text-zinc-500 line-through'
-                            : isStopped
-                            ? 'text-amber-900 dark:text-amber-200'
-                            : isSuspended
-                            ? 'text-purple-900 dark:text-purple-200'
-                            : 'text-[#1C1C1E] dark:text-white'
-                        }`}
-                      >
-                        {step.title}
-                      </h5>
-
-                      {/* Status Badges */}
-                      {isStopped && (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-1.5 py-0.2 text-[9px] font-black text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
-                          <Pause className="h-2 w-2" />
-                          {language === 'ar' ? 'متوقفة' : 'Stopped'}
-                        </span>
+              {/* Main Step Card Container */}
+              <div className="p-3.5 space-y-2.5">
+                {/* 1. Header: Status, Title, Badges, and Expand/Reorder Controls */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    {/* Status Toggle Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleToggleStatus(step)}
+                      className="p-0.5 text-zinc-400 hover:text-[#007AFF] transition-colors shrink-0"
+                      title={
+                        isStopped
+                          ? language === 'ar'
+                            ? 'متوقفة - انقر للاستئناف'
+                            : 'Stopped - Click to resume'
+                          : isSuspended
+                          ? language === 'ar'
+                            ? `معلقة حتى ${step.suspendedUntil} - انقر للاستئناف`
+                            : `Suspended until ${step.suspendedUntil} - Click to resume`
+                          : isDone
+                          ? language === 'ar'
+                            ? 'مكتملة وممولة بالكامل'
+                            : 'Completed & Fully Funded'
+                          : isInProgress
+                          ? language === 'ar'
+                            ? 'قيد التنفيذ'
+                            : 'In Progress'
+                          : language === 'ar'
+                          ? 'لم تبدأ'
+                          : 'Not Started'
+                      }
+                    >
+                      {isDone ? (
+                        <CheckCircle2 className="h-5 w-5 text-[#34C759]" />
+                      ) : isStopped ? (
+                        <Pause className="h-5 w-5 text-amber-500 fill-amber-500/20" />
+                      ) : isSuspended ? (
+                        <Clock className="h-5 w-5 text-purple-500" />
+                      ) : isInProgress ? (
+                        <PlayCircle className="h-5 w-5 text-[#007AFF]" />
+                      ) : (
+                        <Circle className="h-5 w-5 text-zinc-400" />
                       )}
+                    </button>
 
-                      {isSuspended && (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-purple-100 px-1.5 py-0.2 text-[9px] font-black text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-300 dark:border-purple-800">
-                          <Clock className="h-2 w-2" />
-                          {language === 'ar'
-                            ? `معلقة حتى ${step.suspendedUntil}`
-                            : `Suspended until ${step.suspendedUntil}`}
-                        </span>
-                      )}
-
-                      {step.isCritical && (
-                        <span className="inline-flex items-center gap-0.5 rounded-md bg-rose-100 px-1.5 py-0.2 text-[9px] font-black text-rose-700 dark:bg-rose-950 dark:text-rose-300">
-                          <Flame className="h-2 w-2" />
-                          CPM
-                        </span>
-                      )}
-
-                      {isFullyFunded && !isDone && (
-                        <span className="inline-flex items-center gap-0.5 rounded-md bg-emerald-100 px-1.5 py-0.2 text-[9px] font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                          <Check className="h-2 w-2" />
-                          {language === 'ar' ? 'ممولة' : 'Funded'}
-                        </span>
-                      )}
-
-                      {/* Schedule History Audit Button */}
-                      {step.scheduleHistory && step.scheduleHistory.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setHistoryStep(step)}
-                          className="inline-flex items-center gap-0.5 rounded-md bg-indigo-50 px-1.5 py-0.2 text-[9px] font-bold text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:text-indigo-300 transition-colors"
-                          title={language === 'ar' ? 'سجل التعديلات الزمنية' : 'Schedule Audit History'}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] font-bold text-[#8E8E93]">#{idx + 1}</span>
+                        <h5
+                          className={`text-xs font-bold truncate ${
+                            isDone
+                              ? 'text-zinc-500 line-through'
+                              : isStopped
+                              ? 'text-amber-900 dark:text-amber-200'
+                              : isSuspended
+                              ? 'text-purple-900 dark:text-purple-200'
+                              : 'text-[#1C1C1E] dark:text-white'
+                          }`}
                         >
-                          <History className="h-2 w-2" />
-                          <span>{step.scheduleHistory.length}</span>
-                        </button>
+                          {step.title}
+                        </h5>
+
+                        {/* Status Badges */}
+                        {isStopped && (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-1.5 py-0.2 text-[9px] font-black text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                            <Pause className="h-2 w-2" />
+                            {language === 'ar' ? 'متوقفة' : 'Stopped'}
+                          </span>
+                        )}
+
+                        {isSuspended && (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-purple-100 px-1.5 py-0.2 text-[9px] font-black text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-300 dark:border-purple-800">
+                            <Clock className="h-2 w-2" />
+                            {language === 'ar'
+                              ? `معلقة حتى ${step.suspendedUntil}`
+                              : `Suspended until ${step.suspendedUntil}`}
+                          </span>
+                        )}
+
+                        {step.isCritical && (
+                          <span className="inline-flex items-center gap-0.5 rounded-md bg-rose-100 px-1.5 py-0.2 text-[9px] font-black text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+                            <Flame className="h-2 w-2" />
+                            CPM
+                          </span>
+                        )}
+
+                        {isFullyFunded && !isDone && (
+                          <span className="inline-flex items-center gap-0.5 rounded-md bg-emerald-100 px-1.5 py-0.2 text-[9px] font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                            <Check className="h-2 w-2" />
+                            {language === 'ar' ? 'ممولة' : 'Funded'}
+                          </span>
+                        )}
+
+                        {/* Schedule History Audit Button */}
+                        {step.scheduleHistory && step.scheduleHistory.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setHistoryStep(step)}
+                            className="inline-flex items-center gap-0.5 rounded-md bg-indigo-50 px-1.5 py-0.2 text-[9px] font-bold text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:text-indigo-300 transition-colors"
+                            title={language === 'ar' ? 'سجل التعديلات الزمنية' : 'Schedule Audit History'}
+                          >
+                            <History className="h-2 w-2" />
+                            <span>{step.scheduleHistory.length}</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Header right: reorder & expand chevron */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center gap-0.5 border-r border-[#E5E5EA] dark:border-[#38383A] pr-1.5 mr-0.5 rtl:border-r-0 rtl:border-l rtl:pr-0 rtl:pl-1.5 rtl:mr-0 rtl:ml-0.5">
+                      <button
+                        type="button"
+                        disabled={idx === 0}
+                        onClick={() => handleMoveStep(idx, 'up')}
+                        className="rounded p-1 text-[#8E8E93] hover:text-[#007AFF] hover:bg-[#F2F2F7] disabled:opacity-25 dark:hover:bg-[#38383A] transition-colors"
+                        title={language === 'ar' ? 'تحريك للأعلى' : 'Move Up'}
+                      >
+                        <ArrowUp className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={idx === steps.length - 1}
+                        onClick={() => handleMoveStep(idx, 'down')}
+                        className="rounded p-1 text-[#8E8E93] hover:text-[#007AFF] hover:bg-[#F2F2F7] disabled:opacity-25 dark:hover:bg-[#38383A] transition-colors"
+                        title={language === 'ar' ? 'تحريك للأسفل' : 'Move Down'}
+                      >
+                        <ArrowDown className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    {step.predecessors.length > 0 && (
+                      <span className="hidden sm:inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[9px] font-bold text-[#007AFF] dark:bg-blue-950/50 dark:text-blue-300">
+                        <Link className="h-2.5 w-2.5" />
+                        {step.predecessors.length} {language === 'ar' ? 'اعتمادية' : 'dep'}
+                      </span>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setEditingStepId(isExpanded ? null : step.id)}
+                      className="rounded-lg p-1.5 text-[#8E8E93] hover:bg-[#F2F2F7] dark:hover:bg-[#38383A] transition-colors"
+                      title={isExpanded ? (language === 'ar' ? 'طي التفاصيل' : 'Collapse') : (language === 'ar' ? 'تعديل المرحلة' : 'Edit Step')}
+                    >
+                      {isExpanded ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
                       )}
-                    </div>
-
-                    <div className="flex items-center gap-2 text-[10px] text-[#8E8E93] mt-0.5 flex-wrap">
-                      <span className="font-mono font-bold text-[#1C1C1E] dark:text-zinc-300">
-                        {formatCurrency(allocated)} / {formatCurrency(target)} ({progress}%)
-                      </span>
-                      <span>•</span>
-                      <span>
-                        {step.startDate} ➔ {step.endDate} ({step.duration}d)
-                      </span>
-                    </div>
-
-                    {/* Step Dedicated Financial Progress Bar */}
-                    <div className="mt-1.5 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-[#E5E5EA] dark:bg-[#38383A]">
-                      <div
-                        className={`h-full rounded-full transition-all duration-300 ${
-                          isFullyFunded
-                            ? 'bg-[#34C759]'
-                            : isStopped
-                            ? 'bg-amber-400'
-                            : isSuspended
-                            ? 'bg-purple-400'
-                            : isInProgress
-                            ? 'bg-[#007AFF]'
-                            : 'bg-zinc-400'
-                        }`}
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
+                    </button>
                   </div>
                 </div>
 
-                {/* Right controls: Lifecycle actions, Allocate, Reorder & Expand */}
-                <div className="flex items-center gap-1 shrink-0">
-                  {/* Quick Stop/Resume Button */}
-                  {isStopped ? (
-                    <button
-                      type="button"
-                      onClick={() => handleResumeStep(step.id)}
-                      className="flex items-center gap-1 rounded-lg px-2 py-0.5 text-[10px] font-bold bg-amber-500 text-white hover:bg-amber-600 transition-colors shadow-2xs"
-                      title={language === 'ar' ? 'استئناف المرحلة' : 'Resume step'}
-                    >
-                      <Play className="h-2.5 w-2.5" />
-                      <span className="hidden sm:inline">{language === 'ar' ? 'استئناف' : 'Resume'}</span>
-                    </button>
-                  ) : isSuspended ? (
-                    <button
-                      type="button"
-                      onClick={() => handleResumeStep(step.id)}
-                      className="flex items-center gap-1 rounded-lg px-2 py-0.5 text-[10px] font-bold bg-purple-600 text-white hover:bg-purple-700 transition-colors shadow-2xs"
-                      title={language === 'ar' ? 'استئناف المرحلة فوراً' : 'Resume now'}
-                    >
-                      <Play className="h-2.5 w-2.5" />
-                      <span className="hidden sm:inline">{language === 'ar' ? 'استئناف' : 'Resume'}</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => handleStopStep(step.id)}
-                      className="flex items-center gap-1 rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-[#8E8E93] hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors"
-                      title={language === 'ar' ? 'إيقاف المرحلة مؤقتاً' : 'Stop step'}
-                    >
-                      <Pause className="h-2.5 w-2.5" />
-                      <span className="hidden sm:inline">{language === 'ar' ? 'إيقاف' : 'Stop'}</span>
-                    </button>
-                  )}
+                {/* 2. Separated Step Financial Progress & Schedule Summary */}
+                <div className="space-y-1.5 rounded-xl bg-zinc-50/70 p-2.5 dark:bg-[#1C1C1E]/60 border border-[#E5E5EA]/70 dark:border-[#38383A]/70">
+                  <div className="flex items-center justify-between text-xs flex-wrap gap-1">
+                    <div className="flex items-center gap-1.5">
+                      <Wallet className="h-3.5 w-3.5 text-[#8E8E93]" />
+                      <span className="font-mono font-bold text-[#1C1C1E] dark:text-white">
+                        {formatCurrency(allocated)}
+                      </span>
+                      <span className="text-[#8E8E93] text-[11px]">/</span>
+                      <span className="text-[#8E8E93] text-[11px]">{formatCurrency(target)}</span>
+                      <span
+                        className={`rounded-md px-1.5 py-0.2 text-[10px] font-black ${
+                          isFullyFunded
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                            : isStopped
+                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                            : isSuspended
+                            ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'
+                            : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
+                        }`}
+                      >
+                        {progress}%
+                      </span>
+                    </div>
 
-                  {/* Suspend Button */}
-                  {!isDone && (
+                    <div className="flex items-center gap-2 text-[10px] text-[#8E8E93]">
+                      <span className="flex items-center gap-1 font-medium">
+                        <Calendar className="h-3 w-3 text-[#007AFF]" />
+                        {step.startDate} ➔ {step.endDate}
+                      </span>
+                      <span>•</span>
+                      <span className="flex items-center gap-1 font-medium">
+                        <Clock className="h-3 w-3" />
+                        {step.duration} {language === 'ar' ? 'يوم' : 'd'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Financial Progress Bar */}
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-[#E5E5EA] dark:bg-[#38383A]">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        isFullyFunded
+                          ? 'bg-[#34C759]'
+                          : isStopped
+                          ? 'bg-amber-500'
+                          : isSuspended
+                          ? 'bg-purple-500'
+                          : step.isCritical
+                          ? 'bg-rose-500'
+                          : isInProgress
+                          ? 'bg-[#007AFF]'
+                          : 'bg-zinc-400'
+                      }`}
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* 3. Action Toolbelt Row (Separated, touch-friendly min 36x36px badges) */}
+                <div className="flex items-center justify-between gap-2 flex-wrap pt-0.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Pause / Stop Button (Amber/Red hover accent) */}
+                    {isStopped ? (
+                      <button
+                        type="button"
+                        onClick={() => handleResumeStep(step.id)}
+                        className="h-9 w-9 flex items-center justify-center rounded-lg border border-amber-500/60 bg-amber-500/20 text-amber-500 hover:bg-amber-500/30 hover:text-amber-400 hover:border-amber-400 dark:border-amber-500/60 dark:bg-amber-500/25 dark:text-amber-400 transition-all active:scale-95 shadow-xs"
+                        title={language === 'ar' ? 'استئناف المرحلة' : 'Resume Step'}
+                      >
+                        <Play className="h-4 w-4 fill-current" />
+                      </button>
+                    ) : isSuspended ? (
+                      <button
+                        type="button"
+                        onClick={() => handleResumeStep(step.id)}
+                        className="h-9 w-9 flex items-center justify-center rounded-lg border border-purple-500/60 bg-purple-500/20 text-purple-600 hover:bg-purple-500/30 hover:text-purple-300 hover:border-purple-400 dark:border-purple-500/60 dark:bg-purple-500/25 dark:text-purple-300 transition-all active:scale-95 shadow-xs"
+                        title={language === 'ar' ? 'استئناف المرحلة فوراً' : 'Resume Step'}
+                      >
+                        <Play className="h-4 w-4 fill-current" />
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleStopStep(step.id)}
+                        className="h-9 w-9 flex items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/80 text-zinc-500 dark:text-zinc-400 hover:bg-amber-500/20 hover:text-amber-500 dark:hover:text-amber-400 hover:border-amber-500/40 transition-all active:scale-95 shadow-xs"
+                        title={language === 'ar' ? 'إيقاف المرحلة مؤقتاً' : 'Stop / Pause Step'}
+                      >
+                        <Pause className="h-4 w-4 fill-current" />
+                      </button>
+                    )}
+
+                    {/* Suspend Button (Violet/Purple hover accent) */}
                     <button
                       type="button"
                       onClick={() => {
@@ -612,29 +697,31 @@ export const PlanStepsManager: React.FC<PlanStepsManagerProps> = ({
                         setSuspendPreset(7);
                         setCustomResumeDate(addDays(toDateOnlyString(new Date()), 7));
                       }}
-                      className="flex items-center gap-1 rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-[#8E8E93] hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors"
-                      title={language === 'ar' ? 'تعليق المرحلة لمدة محددة' : 'Suspend for duration'}
+                      className={`h-9 w-9 flex items-center justify-center rounded-lg border transition-all active:scale-95 shadow-xs ${
+                        isSuspended
+                          ? 'border-purple-500/60 bg-purple-500/20 text-purple-600 dark:border-purple-500/60 dark:bg-purple-500/25 dark:text-purple-300'
+                          : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/80 text-zinc-500 dark:text-zinc-400 hover:bg-purple-500/20 hover:text-purple-600 dark:hover:text-purple-400 hover:border-purple-500/40'
+                      }`}
+                      title={language === 'ar' ? 'تعليق المرحلة لفترة محددة' : 'Suspend Step'}
                     >
-                      <Clock className="h-2.5 w-2.5" />
-                      <span className="hidden sm:inline">{language === 'ar' ? 'تعليق' : 'Suspend'}</span>
+                      <Clock className="h-4 w-4" />
                     </button>
-                  )}
 
-                  {/* Reschedule Button */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRescheduleStep(step);
-                      setRescheduleDate(step.startDate);
-                      setRescheduleDuration(step.duration);
-                      setRescheduleReason('');
-                    }}
-                    className="flex items-center gap-1 rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-[#8E8E93] hover:text-[#007AFF] hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors"
-                    title={language === 'ar' ? 'إعادة جدولة المرحلة مع تحديث التبعيات' : 'Reschedule & cascade'}
-                  >
-                    <CalendarClock className="h-2.5 w-2.5" />
-                    <span className="hidden sm:inline">{language === 'ar' ? 'جدولة' : 'Reschedule'}</span>
-                  </button>
+                    {/* Reschedule Button (Cyan/Blue hover accent) */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRescheduleStep(step);
+                        setRescheduleDate(step.startDate);
+                        setRescheduleDuration(step.duration);
+                        setRescheduleReason('');
+                      }}
+                      className="h-9 w-9 flex items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/80 text-zinc-500 dark:text-zinc-400 hover:bg-cyan-500/20 hover:text-cyan-600 dark:hover:text-cyan-400 hover:border-cyan-500/40 transition-all active:scale-95 shadow-xs"
+                      title={language === 'ar' ? 'إعادة جدولة المرحلة (CPM)' : 'Reschedule Step (CPM)'}
+                    >
+                      <CalendarClock className="h-4 w-4" />
+                    </button>
+                  </div>
 
                   {/* Allocate Button (Blocked when stopped or suspended) */}
                   {onOpenAllocate && (
@@ -642,12 +729,12 @@ export const PlanStepsManager: React.FC<PlanStepsManagerProps> = ({
                       type="button"
                       disabled={isBlocked}
                       onClick={() => onOpenAllocate(step.id)}
-                      className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[10px] font-bold transition-all shadow-2xs ${
+                      className={`h-9 px-3.5 flex items-center gap-1.5 rounded-lg text-xs font-bold transition-all shadow-xs ${
                         isBlocked
-                          ? 'opacity-40 cursor-not-allowed bg-zinc-200 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'
+                          ? 'opacity-40 cursor-not-allowed bg-zinc-200 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 border border-zinc-300 dark:border-zinc-700'
                           : isFullyFunded
-                          ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-950 dark:text-emerald-300'
-                          : 'bg-[#007AFF] text-white hover:bg-[#0062CC] active:scale-95'
+                          ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
+                          : 'bg-[#007AFF] text-white hover:bg-[#0062CC] shadow-blue-500/20 active:scale-95'
                       }`}
                       title={
                         isStopped
@@ -663,243 +750,24 @@ export const PlanStepsManager: React.FC<PlanStepsManagerProps> = ({
                           : 'Allocate funds to this step'
                       }
                     >
-                      <Plus className="h-3 w-3" />
+                      <Plus className="h-4 w-4" />
                       <span>{language === 'ar' ? 'تخصيص' : 'Allocate'}</span>
                     </button>
                   )}
-
-                  {/* Step Reorder Buttons */}
-                  <div className="flex items-center gap-0.5 border-r border-[#E5E5EA] dark:border-[#38383A] pr-1.5 mr-0.5 rtl:border-r-0 rtl:border-l rtl:pr-0 rtl:pl-1.5 rtl:mr-0 rtl:ml-0.5">
-                    <button
-                      type="button"
-                      disabled={idx === 0}
-                      onClick={() => handleMoveStep(idx, 'up')}
-                      className="rounded p-1 text-[#8E8E93] hover:text-[#007AFF] hover:bg-[#F2F2F7] disabled:opacity-25 dark:hover:bg-[#38383A] transition-colors"
-                      title={language === 'ar' ? 'تحريك للأعلى' : 'Move Up'}
-                    >
-                      <ArrowUp className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      disabled={idx === steps.length - 1}
-                      onClick={() => handleMoveStep(idx, 'down')}
-                      className="rounded p-1 text-[#8E8E93] hover:text-[#007AFF] hover:bg-[#F2F2F7] disabled:opacity-25 dark:hover:bg-[#38383A] transition-colors"
-                      title={language === 'ar' ? 'تحريك للأسفل' : 'Move Down'}
-                    >
-                      <ArrowDown className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-
-                  {step.predecessors.length > 0 && (
-                    <span className="hidden sm:inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[9px] font-bold text-[#007AFF] dark:bg-blue-950/50 dark:text-blue-300">
-                      <Link className="h-2.5 w-2.5" />
-                      {step.predecessors.length} {language === 'ar' ? 'اعتمادية' : 'dep'}
-                    </span>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => setEditingStepId(isExpanded ? null : step.id)}
-                    className="rounded-lg p-1 text-[#8E8E93] hover:bg-[#F2F2F7] dark:hover:bg-[#38383A] transition-colors"
-                  >
-                    {isExpanded ? (
-                      <ChevronUp className="h-4 w-4" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4" />
-                    )}
-                  </button>
                 </div>
               </div>
 
               {/* Expanded In-Place Step Editor */}
               {isExpanded && (
-                <div className="border-t border-[#F2F2F7] bg-[#F9F9FB] p-3.5 dark:border-[#38383A] dark:bg-[#1C1C1E] rounded-b-2xl space-y-3 animate-in fade-in duration-150 text-xs">
-                  {/* Title & Target Amount Inputs */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <div>
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#8E8E93] block">
-                        {language === 'ar' ? 'عنوان المرحلة / النشاط' : 'Activity Title'}
-                      </label>
-                      <input
-                        type="text"
-                        value={step.title}
-                        onChange={e => handleUpdateStepField(step.id, { title: e.target.value })}
-                        className="mt-1 w-full rounded-xl border border-[#D1D1D6] bg-white px-2.5 py-1.5 text-xs font-semibold text-[#1C1C1E] dark:border-[#3A3A3C] dark:bg-[#2C2C2E] dark:text-white"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#8E8E93] block">
-                        {language === 'ar' ? 'ميزانية المرحلة المطلوبة' : 'Target Budget (IQD)'}
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={formatAmountInput(step.targetAmount.toString())}
-                        onChange={e =>
-                          handleUpdateStepField(step.id, {
-                            targetAmount: parseRawAmount(e.target.value) || 0,
-                          })
-                        }
-                        className="mt-1 w-full rounded-xl border border-[#D1D1D6] bg-white px-2.5 py-1.5 text-xs font-semibold text-[#1C1C1E] dark:border-[#3A3A3C] dark:bg-[#2C2C2E] dark:text-white"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Dates & Duration (Days) */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    <div>
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#8E8E93] block">
-                        {language === 'ar' ? 'تاريخ البدء' : 'Start Date'}
-                      </label>
-                      <input
-                        type="date"
-                        value={step.startDate}
-                        onChange={e => handleUpdateStepField(step.id, { startDate: e.target.value })}
-                        className="mt-1 w-full rounded-xl border border-[#D1D1D6] bg-white px-2 py-1.5 text-xs font-semibold text-[#1C1C1E] dark:border-[#3A3A3C] dark:bg-[#2C2C2E] dark:text-white"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#8E8E93] block">
-                        {language === 'ar' ? 'المدة (أيام)' : 'Duration (Days)'}
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={step.duration}
-                        onChange={e =>
-                          handleUpdateStepField(step.id, {
-                            duration: Math.max(1, parseInt(e.target.value, 10) || 1),
-                          })
-                        }
-                        className="mt-1 w-full rounded-xl border border-[#D1D1D6] bg-white px-2 py-1.5 text-xs font-semibold text-[#1C1C1E] dark:border-[#3A3A3C] dark:bg-[#2C2C2E] dark:text-white"
-                      />
-                    </div>
-
-                    <div className="col-span-2 sm:col-span-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[#8E8E93] block">
-                        {language === 'ar' ? 'تاريخ الانتهاء المحسوب' : 'Calculated End Date'}
-                      </label>
-                      <div className="mt-1 rounded-xl bg-[#E5E5EA]/70 dark:bg-[#2C2C2E] px-2 py-1.5 text-xs font-semibold text-[#1C1C1E] dark:text-white">
-                        {step.endDate}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Predecessors / Primavera P6 Relationships */}
-                  <div className="space-y-2 pt-1 border-t border-[#E5E5EA] dark:border-[#38383A]">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#8E8E93] flex items-center gap-1">
-                      <Link className="h-3 w-3 text-[#007AFF]" />
-                      {language === 'ar' ? 'الاعتماديات السابقة (Predecessors)' : 'Predecessor Relationships'}
-                    </span>
-
-                    {/* Existing Predecessor Badges */}
-                    {step.predecessors.length === 0 ? (
-                      <p className="text-[11px] text-[#8E8E93] italic">
-                        {language === 'ar'
-                          ? 'لا توجد اعتماديات مرتبطة (تبدأ وفق تاريخها المحدد).'
-                          : 'No predecessor dependencies (starts independently on specified start date).'}
-                      </p>
-                    ) : (
-                      <div className="flex flex-wrap gap-1.5">
-                        {step.predecessors.map((rel, rIdx) => {
-                          const predStep = steps.find(s => s.id === rel.predecessorId);
-                          const lagText =
-                            rel.lag !== undefined && rel.lag !== 0
-                              ? `${rel.lag >= 0 ? '+' : ''}${rel.lag}d`
-                              : '+0d';
-
-                          return (
-                            <span
-                              key={rIdx}
-                              className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-white px-2 py-1 text-[11px] font-semibold text-[#007AFF] dark:border-blue-900 dark:bg-[#2C2C2E] dark:text-blue-300"
-                            >
-                              <span>{predStep ? predStep.title : 'Activity'}</span>
-                              <strong className="rounded bg-blue-100 px-1 text-[9px] dark:bg-blue-900">
-                                {rel.type}
-                                {lagText}
-                              </strong>
-                              <button
-                                type="button"
-                                onClick={() => handleRemovePredecessor(step.id, rel.predecessorId)}
-                                className="ml-1 text-[#8E8E93] hover:text-[#FF3B30]"
-                              >
-                                ×
-                              </button>
-                            </span>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Add Relationship Control */}
-                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                      <select
-                        value={newRelPredecessorId}
-                        onChange={e => setNewRelPredecessorId(e.target.value)}
-                        className="rounded-xl border border-[#D1D1D6] bg-white px-2 py-1.5 text-[11px] font-semibold text-[#1C1C1E] dark:border-[#3A3A3C] dark:bg-[#2C2C2E] dark:text-white"
-                      >
-                        <option value="">{language === 'ar' ? '-- اختر مرحلة سابقة --' : '-- Choose Predecessor --'}</option>
-                        {steps
-                          .filter(s => s.id !== step.id)
-                          .map(s => (
-                            <option key={s.id} value={s.id}>
-                              {s.title} ({s.startDate})
-                            </option>
-                          ))}
-                      </select>
-
-                      <select
-                        value={newRelType}
-                        onChange={e => setNewRelType(e.target.value as DependencyType)}
-                        className="rounded-xl border border-[#D1D1D6] bg-white px-2 py-1.5 text-[11px] font-bold text-[#1C1C1E] dark:border-[#3A3A3C] dark:bg-[#2C2C2E] dark:text-white"
-                        title="FS: Finish to Start, SS: Start to Start, FF: Finish to Finish, SF: Start to Finish"
-                      >
-                        <option value="FS">FS (Finish ➔ Start)</option>
-                        <option value="SS">SS (Start ➔ Start)</option>
-                        <option value="FF">FF (Finish ➔ Finish)</option>
-                        <option value="SF">SF (Start ➔ Finish)</option>
-                      </select>
-
-                      <div className="flex items-center gap-1">
-                        <span className="text-[10px] text-[#8E8E93]">Lag:</span>
-                        <input
-                          type="number"
-                          value={newRelLag}
-                          onChange={e => setNewRelLag(parseInt(e.target.value, 10) || 0)}
-                          className="w-14 rounded-xl border border-[#D1D1D6] bg-white px-1.5 py-1.5 text-[11px] font-semibold text-[#1C1C1E] dark:border-[#3A3A3C] dark:bg-[#2C2C2E] dark:text-white text-center"
-                          placeholder="0d"
-                        />
-                        <span className="text-[10px] text-[#8E8E93]">d</span>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleAddPredecessor(step.id)}
-                        disabled={!newRelPredecessorId}
-                        className="rounded-xl bg-[#007AFF] px-2.5 py-1.5 text-[11px] font-bold text-white shadow-xs hover:bg-[#0062CC] disabled:opacity-40 transition-colors"
-                      >
-                        + {language === 'ar' ? 'ربط' : 'Link'}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Footer Actions: Delete Step */}
-                  <div className="flex items-center justify-between pt-2 border-t border-[#E5E5EA] dark:border-[#38383A]">
-                    <span className="text-[10px] text-[#8E8E93]">
-                      {language === 'ar' ? 'إعادة الحساب التلقائي مفعلة لجميع المراحل اللاحقة.' : 'Cascading re-baselining auto-applied.'}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteStep(step.id)}
-                      className="inline-flex items-center gap-1 text-xs font-bold text-[#FF3B30] hover:underline"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      {language === 'ar' ? 'حذف المرحلة' : 'Delete Step'}
-                    </button>
-                  </div>
-                </div>
+                <PlanStepEditor
+                  step={step}
+                  allSteps={steps}
+                  currency={currency}
+                  onUpdateField={fields => handleUpdateStepField(step.id, fields)}
+                  onAddPredecessor={(predId, type, lag) => handleAddPredecessor(step.id, predId, type, lag)}
+                  onRemovePredecessor={predId => handleRemovePredecessor(step.id, predId)}
+                  onDeleteStep={() => handleDeleteStep(step.id)}
+                />
               )}
             </div>
           );

@@ -344,93 +344,8 @@ export const PlanStepCard: React.FC<PlanStepCardProps> = ({
           </div>
         </div>
 
-        {/* Right: Quick Lifecycle Controls, Allocate, and Action Menu */}
+        {/* Right: Reorder & Delete Utility Actions */}
         <div className="flex items-center gap-1 shrink-0">
-          {/* Stop / Resume Quick Action Button */}
-          {!readOnly && (
-            <>
-              {isStopped || isSuspended ? (
-                <button
-                  type="button"
-                  onClick={handleResume}
-                  className="flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300 transition-colors border border-emerald-200 dark:border-emerald-800"
-                  title={language === 'ar' ? 'استئناف المرحلة' : 'Resume Step'}
-                >
-                  <Play className="h-3 w-3 fill-current" />
-                  <span className="hidden sm:inline">{language === 'ar' ? 'استئناف' : 'Resume'}</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleStop}
-                  className="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-700 hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-300 transition-colors border border-amber-200 dark:border-amber-800"
-                  title={language === 'ar' ? 'إيقاف مؤقت للمرحلة' : 'Stop Step'}
-                >
-                  <Pause className="h-3 w-3 fill-current" />
-                  <span className="hidden sm:inline">{language === 'ar' ? 'إيقاف' : 'Stop'}</span>
-                </button>
-              )}
-
-              {/* Suspend Quick Trigger */}
-              <button
-                type="button"
-                onClick={() => setShowSuspendModal(true)}
-                className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold transition-colors border ${
-                  isSuspended
-                    ? 'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-950 dark:text-purple-300'
-                    : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700'
-                }`}
-                title={language === 'ar' ? 'تعليق لفترة محددة' : 'Suspend for Duration'}
-              >
-                <Clock className="h-3 w-3" />
-                <span className="hidden sm:inline">{language === 'ar' ? 'تعليق' : 'Suspend'}</span>
-              </button>
-
-              {/* Reschedule Quick Trigger */}
-              <button
-                type="button"
-                onClick={() => {
-                  setRescheduleDate(step.startDate || toDateOnlyString(new Date()));
-                  setRescheduleDuration(step.duration || 14);
-                  setShowRescheduleModal(true);
-                }}
-                className="flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1 text-[10px] font-bold text-[#007AFF] hover:bg-blue-100 dark:bg-blue-950/60 dark:text-blue-300 transition-colors border border-blue-200 dark:border-blue-800"
-                title={language === 'ar' ? 'إعادة جدولة المرحلة' : 'Reschedule Step'}
-              >
-                <CalendarClock className="h-3 w-3" />
-                <span className="hidden sm:inline">{language === 'ar' ? 'جدولة' : 'Reschedule'}</span>
-              </button>
-            </>
-          )}
-
-          {/* Quick Allocate Button */}
-          {onOpenAllocate && (
-            <button
-              type="button"
-              disabled={isStopped || isSuspended}
-              onClick={() => onOpenAllocate(step.id)}
-              className={`flex items-center gap-1 rounded-xl px-2.5 py-1 text-xs font-bold transition-all shadow-xs ${
-                isStopped || isSuspended
-                  ? 'opacity-40 cursor-not-allowed bg-zinc-200 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'
-                  : isFullyFunded
-                  ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300'
-                  : 'bg-[#007AFF] text-white hover:bg-[#0062CC] shadow-blue-500/20 active:scale-95'
-              }`}
-              title={
-                isStopped || isSuspended
-                  ? language === 'ar'
-                    ? 'التخصيص مجمد لأن المرحلة متوقفة أو معلقة'
-                    : 'Allocation frozen while step is stopped or suspended'
-                  : language === 'ar'
-                  ? `تخصيص رصيد لهذه المرحلة (المتبقي: ${formatCurrency(remaining)})`
-                  : `Allocate funds to this step (Remaining: ${formatCurrency(remaining)})`
-              }
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span>{language === 'ar' ? 'تخصيص' : 'Allocate'}</span>
-            </button>
-          )}
-
           {/* Reorder Buttons */}
           {allowReorder && onMove && !readOnly && (
             <div className="flex items-center gap-0.5 border-r border-[#E5E5EA] dark:border-[#38383A] pr-1.5 mr-0.5 rtl:border-r-0 rtl:border-l rtl:pr-0 rtl:pl-1.5 rtl:mr-0 rtl:ml-0.5">
@@ -525,6 +440,90 @@ export const PlanStepCard: React.FC<PlanStepCardProps> = ({
           />
         </div>
       </div>
+
+      {/* Action Toolbelt Row (Separated, touch-friendly min 36x36px badges) */}
+      {!readOnly && (
+        <div className="mt-3 flex items-center justify-between gap-2 flex-wrap pt-2 border-t border-[#F2F2F7] dark:border-[#38383A]">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Pause / Stop Button (Amber/Red hover accent) */}
+            {isStopped || isSuspended ? (
+              <button
+                type="button"
+                onClick={handleResume}
+                className="h-9 w-9 flex items-center justify-center rounded-lg border border-amber-500/60 bg-amber-500/20 text-amber-500 hover:bg-amber-500/30 hover:text-amber-400 hover:border-amber-400 dark:border-amber-500/60 dark:bg-amber-500/25 dark:text-amber-400 transition-all active:scale-95 shadow-xs"
+                title={language === 'ar' ? 'استئناف المرحلة' : 'Resume Step'}
+              >
+                <Play className="h-4 w-4 fill-current" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleStop}
+                className="h-9 w-9 flex items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/80 text-zinc-500 dark:text-zinc-400 hover:bg-amber-500/20 hover:text-amber-500 dark:hover:text-amber-400 hover:border-amber-500/40 transition-all active:scale-95 shadow-xs"
+                title={language === 'ar' ? 'إيقاف مؤقت للمرحلة' : 'Stop / Pause Step'}
+              >
+                <Pause className="h-4 w-4 fill-current" />
+              </button>
+            )}
+
+            {/* Suspend Button (Violet/Purple hover accent) */}
+            <button
+              type="button"
+              onClick={() => setShowSuspendModal(true)}
+              className={`h-9 w-9 flex items-center justify-center rounded-lg border transition-all active:scale-95 shadow-xs ${
+                isSuspended
+                  ? 'border-purple-500/60 bg-purple-500/20 text-purple-600 dark:border-purple-500/60 dark:bg-purple-500/25 dark:text-purple-300'
+                  : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/80 text-zinc-500 dark:text-zinc-400 hover:bg-purple-500/20 hover:text-purple-600 dark:hover:text-purple-400 hover:border-purple-500/40'
+              }`}
+              title={language === 'ar' ? 'تعليق المرحلة لفترة محددة' : 'Suspend Step'}
+            >
+              <Clock className="h-4 w-4" />
+            </button>
+
+            {/* Reschedule Button (Cyan/Blue hover accent) */}
+            <button
+              type="button"
+              onClick={() => {
+                setRescheduleDate(step.startDate || toDateOnlyString(new Date()));
+                setRescheduleDuration(step.duration || 14);
+                setShowRescheduleModal(true);
+              }}
+              className="h-9 w-9 flex items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/80 text-zinc-500 dark:text-zinc-400 hover:bg-cyan-500/20 hover:text-cyan-600 dark:hover:text-cyan-400 hover:border-cyan-500/40 transition-all active:scale-95 shadow-xs"
+              title={language === 'ar' ? 'إعادة جدولة المرحلة (CPM)' : 'Reschedule Step (CPM)'}
+            >
+              <CalendarClock className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Quick Allocate Button */}
+          {onOpenAllocate && (
+            <button
+              type="button"
+              disabled={isStopped || isSuspended}
+              onClick={() => onOpenAllocate(step.id)}
+              className={`h-9 px-3.5 flex items-center gap-1.5 rounded-lg text-xs font-bold transition-all shadow-xs ${
+                isStopped || isSuspended
+                  ? 'opacity-40 cursor-not-allowed bg-zinc-200 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 border border-zinc-300 dark:border-zinc-700'
+                  : isFullyFunded
+                  ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
+                  : 'bg-[#007AFF] text-white hover:bg-[#0062CC] shadow-blue-500/20 active:scale-95'
+              }`}
+              title={
+                isStopped || isSuspended
+                  ? language === 'ar'
+                    ? 'التخصيص مجمد لأن المرحلة متوقفة أو معلقة'
+                    : 'Allocation frozen while step is stopped or suspended'
+                  : language === 'ar'
+                  ? `تخصيص رصيد لهذه المرحلة (المتبقي: ${formatCurrency(remaining)})`
+                  : `Allocate funds to this step (Remaining: ${formatCurrency(remaining)})`
+              }
+            >
+              <Plus className="h-4 w-4" />
+              <span>{language === 'ar' ? 'تخصيص' : 'Allocate'}</span>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Predecessors / Dependencies Chips */}
       {step.predecessors && step.predecessors.length > 0 && (
