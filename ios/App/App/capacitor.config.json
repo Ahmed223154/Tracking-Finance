@@ -11,6 +11,7 @@
 		"scrollEnabled": true
 	},
 	"packageClassList": [
-		"AppPlugin"
+		"AppPlugin",
+		"StatusBarPlugin"
 	]
 }
