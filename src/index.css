@@ -41,3 +41,22 @@
   padding-top: max(env(safe-area-inset-top, 0px), 48px);
   padding-bottom: calc(max(env(safe-area-inset-bottom, 0px), 24px) + 60px);
 }
+
+/* Prevent iOS WKWebView date input from blowing out container widths */
+input[type="date"] {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+}
+
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  height: auto !important;
+}

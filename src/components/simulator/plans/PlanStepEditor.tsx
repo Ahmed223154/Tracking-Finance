@@ -69,29 +69,29 @@ export const PlanStepEditor: React.FC<PlanStepEditorProps> = ({
         </div>
       </div>
 
-      {/* Start Date & Duration Grid Layout (Strict Column Grid - Prevents Input Overlap) */}
-      <div className="grid grid-cols-[1fr_120px] gap-3 w-full box-border">
-        {/* 1. Start Date (Takes flexible remaining space) */}
-        <div className="flex flex-col min-w-0">
-          <label className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5 truncate">
+      {/* Start Date & Duration Container (Stacked on mobile, side-by-side on sm+ with overflow-hidden clipping) */}
+      <div className="flex flex-col sm:flex-row gap-3 w-full my-2">
+        {/* 1. Start Date Field */}
+        <div className="flex-1 min-w-0">
+          <label className="block text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
             {language === 'ar' ? 'تاريخ البدء' : 'Start Date'}
           </label>
-          <div className="relative w-full">
+          <div className="relative w-full overflow-hidden rounded-xl border border-[#D1D1D6] dark:border-zinc-700/70 bg-white dark:bg-zinc-900/90">
             <input
               type="date"
               value={step.startDate || ''}
               onChange={e => onUpdateField({ startDate: e.target.value })}
-              className="w-full h-11 px-3 bg-white dark:bg-zinc-900/90 border border-[#D1D1D6] dark:border-zinc-700/70 rounded-xl text-sm text-[#1C1C1E] dark:text-zinc-100 focus:outline-none focus:border-cyan-500 box-border truncate"
+              className="w-full h-11 px-3 bg-transparent text-sm text-[#1C1C1E] dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-cyan-500 box-border"
             />
           </div>
         </div>
 
-        {/* 2. Duration (Compact fixed width: 120px) */}
-        <div className="flex flex-col w-[120px] shrink-0">
-          <label className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5 truncate">
-            {language === 'ar' ? 'المدة (أيام)' : 'Duration (d)'}
+        {/* 2. Duration Field */}
+        <div className="w-full sm:w-32 shrink-0">
+          <label className="block text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+            {language === 'ar' ? 'المدة (أيام)' : 'Duration (Days)'}
           </label>
-          <div className="relative w-full">
+          <div className="relative w-full rounded-xl border border-[#D1D1D6] dark:border-zinc-700/70 bg-white dark:bg-zinc-900/90">
             <input
               type="number"
               min="1"
@@ -101,8 +101,8 @@ export const PlanStepEditor: React.FC<PlanStepEditorProps> = ({
                   duration: Math.max(1, parseInt(e.target.value, 10) || 1),
                 })
               }
-              placeholder="Days"
-              className="w-full h-11 px-3 bg-white dark:bg-zinc-900/90 border border-[#D1D1D6] dark:border-zinc-700/70 rounded-xl text-sm text-[#1C1C1E] dark:text-zinc-100 text-center focus:outline-none focus:border-cyan-500 box-border"
+              placeholder={language === 'ar' ? 'أيام' : 'Days'}
+              className="w-full h-11 px-3 bg-transparent text-sm text-[#1C1C1E] dark:text-zinc-100 text-left sm:text-center rtl:text-right sm:rtl:text-center focus:outline-none focus:ring-1 focus:ring-cyan-500 box-border"
             />
           </div>
         </div>
