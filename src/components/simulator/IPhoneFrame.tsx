@@ -7,6 +7,8 @@ interface IPhoneFrameProps {
   activeTab: number;
   onTabChange: (tabIndex: number) => void;
   theme?: string;
+  workspaceBar?: React.ReactNode;
+  tabsOverride?: Array<{ id: number; label: string; icon: any }>;
 }
 
 export const IPhoneFrame: React.FC<IPhoneFrameProps> = ({
@@ -14,6 +16,8 @@ export const IPhoneFrame: React.FC<IPhoneFrameProps> = ({
   activeTab,
   onTabChange,
   theme = 'system',
+  workspaceBar,
+  tabsOverride,
 }) => {
   const { t, isRTL, dir } = useI18n();
   const [currentTime, setCurrentTime] = useState<string>('9:41');
@@ -30,13 +34,15 @@ export const IPhoneFrame: React.FC<IPhoneFrameProps> = ({
     return () => clearInterval(interval);
   }, []);
 
-  const tabs = [
+  const defaultTabs = [
     { id: 0, label: t.tabDashboard, icon: Home },
     { id: 1, label: t.tabPlans, icon: Target },
     { id: 2, label: t.tabTransactions, icon: List },
     { id: 3, label: t.tabAnalytics, icon: PieChart },
     { id: 4, label: t.tabSettings, icon: Settings },
   ];
+
+  const tabs = tabsOverride || defaultTabs;
 
   return (
     <div
@@ -71,6 +77,7 @@ export const IPhoneFrame: React.FC<IPhoneFrameProps> = ({
 
       {/* Main Content Area with Safe-Area Scroll */}
       <div className="relative flex-1 overflow-y-auto safe-content-container no-scrollbar bg-[#F2F2F7] dark:bg-[#1C1C1E]">
+        {workspaceBar}
         {children}
       </div>
 

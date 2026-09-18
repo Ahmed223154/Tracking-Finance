@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TransactionItem, GoalItem, BudgetItem, CategoryItem } from '../../../types/finance';
-import { ShieldCheck, Tag, ChartBar, FileSpreadsheet, Code2, Moon, Sun, Laptop, Download, Database, Check, Globe, Languages } from 'lucide-react';
+import { ShieldCheck, Tag, ChartBar, FileSpreadsheet, Code2, Moon, Sun, Laptop, Download, Database, Check, Globe, Languages, Building, ArrowRightLeft, ChevronRight } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { DeepLinkService } from '../../../services/deepLinkService';
 import { ThemeMode, applyTheme } from '../../../utils/theme';
@@ -18,6 +18,9 @@ interface SettingsTabProps {
   theme: ThemeMode | string;
   onChangeTheme: (theme: ThemeMode) => void;
   onTriggerFaceID: () => void;
+  onOpenAccountSwitcher?: () => void;
+  activeAccountName?: string;
+  accountCount?: number;
 }
 
 export const SettingsTab: React.FC<SettingsTabProps> = ({
@@ -33,6 +36,9 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   theme,
   onChangeTheme,
   onTriggerFaceID,
+  onOpenAccountSwitcher,
+  activeAccountName = 'Personal Vault',
+  accountCount = 1,
 }) => {
   const { t, language, setLanguage, isRTL, translateCat } = useI18n();
   const [showCategoryManager, setShowCategoryManager] = useState(false);
@@ -173,6 +179,38 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Multi-Entity Workspaces & Accounts Card */}
+      {onOpenAccountSwitcher && (
+        <div id="accounts-management-card" className="rounded-[24px] border border-[#E5E5EA] bg-white p-5 shadow-sm dark:border-[#3A3A3C] dark:bg-[#2C2C2E]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400">
+                <Building className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="font-bold text-xs text-[#1C1C1E] dark:text-white">
+                  {language === 'ar' ? 'المحافظ والحسابات المستقلة' : 'Workspaces & Business Accounts'}
+                </div>
+                <div className="text-[11px] text-[#8E8E93]">
+                  {language === 'ar'
+                    ? `الحساب النشط: ${activeAccountName} (${accountCount} حسابات)`
+                    : `Active: ${activeAccountName} (${accountCount} registered)`}
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={onOpenAccountSwitcher}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#007AFF]/10 text-[#007AFF] hover:bg-[#007AFF]/20 text-xs font-bold transition-colors"
+            >
+              <span>{language === 'ar' ? 'إدارة المحافظ' : 'Manage'}</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Security Section */}
       <div className="rounded-[24px] border border-[#E5E5EA] bg-white p-5 shadow-sm dark:border-[#3A3A3C] dark:bg-[#2C2C2E]">

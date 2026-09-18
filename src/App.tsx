@@ -1,16 +1,21 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 // FinanceApp - Personal Finance Management
 // Developer: Ahmed AL KUBAISI (ahmed.mjabbar95@gmail.com)
 // Architecture: Native iOS SwiftUI & SwiftData Architecture + PWA / Capacitor
 import { TransactionItem, PlanItem, BudgetItem, CategoryItem, PlanStep } from './types/finance';
 import { StorageService } from './services/storage';
 import { financeStore } from './store/useFinanceStore';
+import { useAccountStore } from './store/useAccountStore';
 import { IPhoneFrame } from './components/simulator/IPhoneFrame';
 import { DashboardTab } from './components/simulator/tabs/DashboardTab';
 import { TransactionsTab } from './components/simulator/tabs/TransactionsTab';
 import { AnalyticsTab } from './components/simulator/tabs/AnalyticsTab';
 import { PlansTab } from './components/simulator/tabs/PlansTab';
 import { SettingsTab } from './components/simulator/tabs/SettingsTab';
+import { BusinessDashboardTab } from './components/simulator/tabs/BusinessDashboardTab';
+import { BusinessSuiteTab } from './components/simulator/tabs/BusinessSuiteTab';
+import { AccountSwitcherModal } from './components/simulator/accounts/AccountSwitcherModal';
+import { TransferModal } from './components/simulator/accounts/TransferModal';
 import { AddTransactionSheet } from './components/simulator/modals/AddTransactionSheet';
 import { EditTransactionSheet } from './components/simulator/modals/EditTransactionSheet';
 import { AllocateGoalSheet as AllocatePlanSheet } from './components/simulator/modals/AllocateGoalSheet';
@@ -23,7 +28,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { CodeExplorer } from './components/code-hub/CodeExplorer';
 import { DeployGuide } from './components/code-hub/DeployGuide';
 import { FinancialEngine } from './services/financialEngine';
-import { Smartphone, FileCode2, BookOpen, ShieldCheck } from 'lucide-react';
+import { Smartphone, FileCode2, BookOpen, ShieldCheck, Building, ArrowRightLeft, Briefcase, ChevronDown, List, PieChart, Settings, Receipt } from 'lucide-react';
 import { useI18n, I18nProvider, I18nContext, defaultI18nContext } from './context/I18nContext';
 import { WidgetBridge } from './services/widgetBridge';
 import { exitAppToHome } from './utils/widgetSync';
@@ -35,7 +40,32 @@ function FinanceAppMain() {
   // Top-level active view
   const [activeMainView, setActiveMainView] = useState<'simulator' | 'code' | 'guide'>('simulator');
 
-  // Simulator state: 5 Native iOS Tabs (0: Dashboard, 1: Plans, 2: Transactions, 3: Analytics, 4: Settings)
+  // Multi-Entity Business & Personal Account Store
+  const {
+    accounts,
+    activeAccountId,
+    activeAccount,
+    isBusinessMode,
+    invoices,
+    transfers,
+    setActiveAccount,
+    createBusinessAccount,
+    updateAccount,
+    updateAllocatedBudget,
+    deleteAccount,
+    transferFunds,
+    addInvoice,
+    updateInvoice,
+    updateInvoiceStatus,
+    deleteInvoice,
+    markInvoicePaid,
+    calculateBusinessMetrics,
+  } = useAccountStore();
+
+  const [isAccountSwitcherOpen, setIsAccountSwitcherOpen] = useState(false);
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+
+  // Simulator state: 5 Native iOS Tabs (0: Dashboard, 1: Plans/Suite, 2: Transactions, 3: Analytics, 4: Settings)
   const [activeTab, setActiveTab] = useState<number>(0);
   const [plansSubTab, setPlansSubTab] = useState<'dashboard' | 'plans' | 'whatif'>('dashboard');
   const [transactions, setTransactions] = useState<TransactionItem[]>(() => StorageService.loadTransactions());
@@ -44,6 +74,16 @@ function FinanceAppMain() {
   const [categories, setCategories] = useState<CategoryItem[]>(() => StorageService.loadCategories());
   const [biometricsEnabled, setBiometricsEnabled] = useState<boolean>(() => StorageService.getBiometrics());
   const [theme, setTheme] = useState<ThemeMode>(() => getSavedTheme());
+
+  // Filter transactions scoped to active account
+  const currentAccountTransactions = useMemo(() => {
+    return transactions.filter(t => (t.accountId || 'personal') === activeAccountId);
+  }, [transactions, activeAccountId]);
+
+  // Compute live business metrics for the active business
+  const businessMetrics = useMemo(() => {
+    return calculateBusinessMetrics(activeAccountId, transactions, invoices);
+  }, [calculateBusinessMetrics, activeAccountId, transactions, invoices]);
 
   // Modal sheets
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -63,20 +103,21 @@ function FinanceAppMain() {
   const [isBudgetsOpen, setIsBudgetsOpen] = useState(false);
   const [isFaceIDOpen, setIsFaceIDOpen] = useState(false);
 
-  // Reconcile pending transactions logged via Home Screen AppIntents
+  // Reconcile pending transactions logged via Home Screen AppIntents (strictly isolated to Personal Account)
   const reconcileWidgetTransactions = useCallback(async () => {
     try {
       const pending = await WidgetBridge.flushPendingTransactions();
       if (pending && pending.length > 0) {
         const newItems: TransactionItem[] = pending.map((p, idx) => ({
           id: p.id || `tx-intent-${Date.now()}-${idx}`,
+          accountId: 'personal', // Widget Isolation Guard
           amount: Math.abs(Number(p.amount)) || 0,
           currency: 'IQD',
           type: p.type === 'income' ? 'income' : 'expense',
           category: p.category || (p.type === 'income' ? 'Salary' : 'Other'),
           source: p.type === 'income' ? p.category || 'Salary' : '',
           itemDescription: p.note || (p.type === 'income' ? 'Quick Income' : 'Quick Expense'),
-          notes: p.note ? `${p.note} (via iOS Widget Intent)` : 'Logged via iOS Home Screen Widget Intent',
+          notes: p.note ? `${p.note} (via iOS Widget Intent)` : 'Logged via iOS Home Screen Widget Intent [Personal Vault]',
           date: p.date ? p.date.split('T')[0] : new Date().toISOString().split('T')[0],
           createdAt: p.date || new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -264,16 +305,40 @@ function FinanceAppMain() {
     const item: TransactionItem = {
       ...newTx,
       id: 'tx-' + Date.now(),
+      accountId: newTx.accountId || activeAccountId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
+    StorageService.addTransaction(item);
     setTransactions(prev => [item, ...prev]);
   };
 
   const handleQuickAddSave = (newTx: Omit<TransactionItem, 'id' | 'createdAt' | 'updatedAt'>) => {
-    handleAddTransaction(newTx);
+    handleAddTransaction({
+      ...newTx,
+      accountId: 'personal', // Strict Widget Isolation Guard
+    });
     setQuickInputModal(prev => ({ ...prev, isOpen: false }));
   };
+
+  const handleExecuteTransfer = useCallback((params: {
+    fromAccountId: string;
+    toAccountId: string;
+    amount: number;
+    note?: string;
+    date?: string;
+    allTransactions: TransactionItem[];
+  }) => {
+    const res = transferFunds({
+      ...params,
+      allTransactions: transactions,
+    });
+    if (res.success && res.updatedTransactions) {
+      setTransactions(res.updatedTransactions);
+      StorageService.saveTransactions(res.updatedTransactions);
+    }
+    return res;
+  }, [transferFunds, transactions]);
 
   const handleUpdateTransaction = (updated: TransactionItem) => {
     setTransactions(prev => prev.map(t => (t.id === updated.id ? updated : t)));
@@ -441,6 +506,34 @@ function FinanceAppMain() {
               </button>
             </div>
 
+            {/* Account Switcher Pill */}
+            <button
+              type="button"
+              onClick={() => setIsAccountSwitcherOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E5E5EA] bg-white text-xs font-semibold text-[#1C1C1E] dark:border-[#38383A] dark:bg-[#2C2C2E] dark:text-white hover:border-[#007AFF] shadow-xs transition-colors"
+            >
+              <span
+                className="h-2 w-2 rounded-full shrink-0"
+                style={{ backgroundColor: activeAccount.color || '#007AFF' }}
+              />
+              <span className="max-w-[120px] truncate">{activeAccount.name}</span>
+              <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${isBusinessMode ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300'}`}>
+                {isBusinessMode ? (language === 'ar' ? 'أعمال' : 'Biz') : (language === 'ar' ? 'شخصي' : 'Pers')}
+              </span>
+              <ChevronDown className="h-3 w-3 text-[#8E8E93]" />
+            </button>
+
+            {/* Quick Transfer Button */}
+            <button
+              type="button"
+              onClick={() => setIsTransferModalOpen(true)}
+              title={language === 'ar' ? 'تحويل بين المحافظ' : 'Transfer Funds'}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-[#E5E5EA] bg-white text-xs font-semibold text-[#8E8E93] hover:text-[#007AFF] dark:border-[#38383A] dark:bg-[#2C2C2E] shadow-xs transition-colors"
+            >
+              <ArrowRightLeft className="h-3.5 w-3.5 text-[#007AFF]" />
+              <span className="hidden md:inline">{language === 'ar' ? 'تحويل' : 'Transfer'}</span>
+            </button>
+
             {/* Primary Action Button */}
             <button
               onClick={() => {
@@ -463,43 +556,152 @@ function FinanceAppMain() {
               activeTab={activeTab}
               onTabChange={tabIndex => setActiveTab(tabIndex)}
               theme={theme}
+              tabsOverride={
+                isBusinessMode
+                  ? [
+                      { id: 0, label: language === 'ar' ? 'الرئيسية' : 'Dashboard', icon: Building },
+                      { id: 1, label: language === 'ar' ? 'الفواتير' : 'Invoices', icon: Receipt },
+                      { id: 2, label: t.tabTransactions, icon: List },
+                      { id: 3, label: t.tabAnalytics, icon: PieChart },
+                      { id: 4, label: t.tabSettings, icon: Settings },
+                    ]
+                  : undefined
+              }
+              workspaceBar={
+                <div className="px-3.5 pt-1 pb-2 flex items-center justify-between">
+                  {/* Account Switcher Trigger */}
+                  <button
+                    type="button"
+                    onClick={() => setIsAccountSwitcherOpen(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white dark:bg-[#2C2C2E] border border-[#E5E5EA] dark:border-[#38383A] shadow-xs active:scale-95 transition-all text-xs font-bold"
+                  >
+                    <span
+                      className="h-2.5 w-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: activeAccount.color || '#007AFF' }}
+                    />
+                    <span className="max-w-[130px] truncate text-[#1C1C1E] dark:text-white">
+                      {activeAccount.name}
+                    </span>
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                      isBusinessMode
+                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                        : 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300'
+                    }`}>
+                      {isBusinessMode ? (language === 'ar' ? 'أعمال' : 'Business') : (language === 'ar' ? 'شخصي' : 'Personal')}
+                    </span>
+                    <ChevronDown className="h-3 w-3 text-[#8E8E93]" />
+                  </button>
+
+                  {/* Inter-Account Transfer Quick Action */}
+                  <button
+                    type="button"
+                    onClick={() => setIsTransferModalOpen(true)}
+                    title={language === 'ar' ? 'تحويل بين المحافظ' : 'Transfer Funds'}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-white dark:bg-[#2C2C2E] border border-[#E5E5EA] dark:border-[#38383A] shadow-xs hover:border-[#007AFF] text-[#8E8E93] hover:text-[#007AFF] active:scale-95 transition-all text-xs font-semibold"
+                  >
+                    <ArrowRightLeft className="h-3.5 w-3.5 text-[#007AFF]" />
+                    <span className="text-[10px] font-bold text-[#1C1C1E] dark:text-white">
+                      {language === 'ar' ? 'تحويل' : 'Transfer'}
+                    </span>
+                  </button>
+                </div>
+              }
             >
-              {/* Tab 0: Dashboard */}
+              {/* Tab 0: Dashboard (Personal or Business) */}
               {activeTab === 0 && (
-                <DashboardTab
-                  transactions={transactions}
-                  goals={plans}
-                  onOpenAdd={() => {
-                    setAddInitialType('expense');
-                    setIsAddOpen(true);
-                  }}
-                  onNavigateTab={tabIndex => setActiveTab(tabIndex)}
-                  onSelectGoal={plan => setDetailPlan(plan)}
-                />
+                isBusinessMode ? (
+                  <BusinessDashboardTab
+                    account={activeAccount}
+                    transactions={currentAccountTransactions}
+                    invoices={invoices.filter(inv => inv.accountId === activeAccountId)}
+                    metrics={businessMetrics}
+                    onOpenAdd={type => {
+                      setAddInitialType(type);
+                      setIsAddOpen(true);
+                    }}
+                    onOpenTransfer={() => setIsTransferModalOpen(true)}
+                    onNavigateTab={tabIndex => setActiveTab(tabIndex)}
+                    onOpenInvoices={() => setActiveTab(1)}
+                    onUpdateAllocatedBudget={(newBudget, mode, steps) => {
+                      updateAllocatedBudget(activeAccountId, newBudget, mode, steps);
+                    }}
+                  />
+                ) : (
+                  <DashboardTab
+                    transactions={currentAccountTransactions}
+                    goals={plans}
+                    onOpenAdd={() => {
+                      setAddInitialType('expense');
+                      setIsAddOpen(true);
+                    }}
+                    onNavigateTab={tabIndex => setActiveTab(tabIndex)}
+                    onSelectGoal={plan => setDetailPlan(plan)}
+                  />
+                )
               )}
 
-              {/* Tab 1: Financial Plans (3 Sub-Views: Plans Dashboard, My Plans, What-If Simulator) */}
+              {/* Tab 1: Financial Plans (Personal) or Business Invoices (Business) */}
               {activeTab === 1 && (
-                <PlansTab
-                  goals={plans}
-                  transactions={transactions}
-                  initialSubTab={plansSubTab}
-                  onOpenCreateGoal={() => setIsCreatePlanOpen(true)}
-                  onOpenAllocate={(plan, stepId) => {
-                    setAllocatingPlan(plan);
-                    setAllocatingStepId(stepId);
-                  }}
-                  onOpenDetail={plan => setDetailPlan(plan)}
-                  onDeletePlan={handleDeletePlan}
-                  onDeletePlansBatch={handleDeletePlansBatch}
-                  onNavigateTab={tabIndex => setActiveTab(tabIndex)}
-                />
+                isBusinessMode ? (
+                  <BusinessSuiteTab
+                    account={activeAccount}
+                    transactions={currentAccountTransactions}
+                    invoices={invoices.filter(inv => inv.accountId === activeAccountId)}
+                    metrics={businessMetrics}
+                    onAddInvoice={data => {
+                      addInvoice(data, updatedTxs => {
+                        setTransactions(updatedTxs);
+                        StorageService.saveTransactions(updatedTxs);
+                      });
+                    }}
+                    onUpdateInvoice={inv => {
+                      updateInvoice(inv, updatedTxs => {
+                        setTransactions(updatedTxs);
+                        StorageService.saveTransactions(updatedTxs);
+                      });
+                    }}
+                    onUpdateInvoiceStatus={(id, status) => {
+                      updateInvoiceStatus(id, status, updatedTxs => {
+                        setTransactions(updatedTxs);
+                        StorageService.saveTransactions(updatedTxs);
+                      });
+                    }}
+                    onDeleteInvoice={id => {
+                      deleteInvoice(id, updatedTxs => {
+                        setTransactions(updatedTxs);
+                        StorageService.saveTransactions(updatedTxs);
+                      });
+                    }}
+                    onMarkInvoicePaid={id => {
+                      markInvoicePaid(id, updatedTxs => {
+                        setTransactions(updatedTxs);
+                        StorageService.saveTransactions(updatedTxs);
+                      });
+                    }}
+                    onNavigateTab={tabIndex => setActiveTab(tabIndex)}
+                  />
+                ) : (
+                  <PlansTab
+                    goals={plans}
+                    transactions={currentAccountTransactions}
+                    initialSubTab={plansSubTab}
+                    onOpenCreateGoal={() => setIsCreatePlanOpen(true)}
+                    onOpenAllocate={(plan, stepId) => {
+                      setAllocatingPlan(plan);
+                      setAllocatingStepId(stepId);
+                    }}
+                    onOpenDetail={plan => setDetailPlan(plan)}
+                    onDeletePlan={handleDeletePlan}
+                    onDeletePlansBatch={handleDeletePlansBatch}
+                    onNavigateTab={tabIndex => setActiveTab(tabIndex)}
+                  />
+                )
               )}
 
               {/* Tab 2: Transactions */}
               {activeTab === 2 && (
                 <TransactionsTab
-                  transactions={transactions}
+                  transactions={currentAccountTransactions}
                   onOpenAdd={() => setIsAddOpen(true)}
                   onEditTransaction={item => setEditingTransaction(item)}
                   onDeleteTransaction={id => handleDeleteTransaction(id)}
@@ -509,13 +711,13 @@ function FinanceAppMain() {
 
               {/* Tab 3: Analytics / Budgets */}
               {activeTab === 3 && (
-                <AnalyticsTab transactions={transactions} />
+                <AnalyticsTab transactions={currentAccountTransactions} />
               )}
 
-              {/* Tab 4: Settings (Arabic / English Language Toggle & Developer Credits) */}
+              {/* Tab 4: Settings */}
               {activeTab === 4 && (
                 <SettingsTab
-                  transactions={transactions}
+                  transactions={currentAccountTransactions}
                   goals={plans}
                   budgets={budgets}
                   categories={categories}
@@ -530,6 +732,9 @@ function FinanceAppMain() {
                     applyTheme(t);
                   }}
                   onTriggerFaceID={() => setIsFaceIDOpen(true)}
+                  onOpenAccountSwitcher={() => setIsAccountSwitcherOpen(true)}
+                  activeAccountName={activeAccount.name}
+                  accountCount={accounts.length}
                 />
               )}
             </IPhoneFrame>
@@ -546,6 +751,8 @@ function FinanceAppMain() {
         <AddTransactionSheet
           categories={categories}
           initialType={addInitialType}
+          accounts={accounts}
+          activeAccountId={activeAccountId}
           onClose={() => setIsAddOpen(false)}
           onSave={handleAddTransaction}
           onAddCategory={handleAddCategory}
@@ -630,6 +837,33 @@ function FinanceAppMain() {
         categories={categories}
         onClose={() => setQuickInputModal(prev => ({ ...prev, isOpen: false }))}
         onSave={handleQuickAddSave}
+      />
+
+      {/* Multi-Entity Account Switcher Modal */}
+      <AccountSwitcherModal
+        isOpen={isAccountSwitcherOpen}
+        onClose={() => setIsAccountSwitcherOpen(false)}
+        accounts={accounts}
+        activeAccountId={activeAccountId}
+        transactions={transactions}
+        onSelectAccount={id => {
+          setActiveAccount(id);
+          setActiveTab(0);
+        }}
+        onCreateAccount={createBusinessAccount}
+        onUpdateAccount={updateAccount}
+        onDeleteAccount={deleteAccount}
+        onOpenTransfer={() => setIsTransferModalOpen(true)}
+      />
+
+      {/* Inter-Account Transfer Modal */}
+      <TransferModal
+        isOpen={isTransferModalOpen}
+        onClose={() => setIsTransferModalOpen(false)}
+        accounts={accounts}
+        activeAccountId={activeAccountId}
+        transactions={transactions}
+        onExecuteTransfer={handleExecuteTransfer}
       />
     </div>
   );

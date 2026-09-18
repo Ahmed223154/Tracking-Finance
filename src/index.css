@@ -28,6 +28,16 @@
   }
 }
 
+/* Prevent iOS WebKit from forcing a white background on active/focused inputs */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #ffffff !important;
+  -webkit-box-shadow: 0 0 0px 1000px #18181b inset !important;
+  box-shadow: 0 0 0px 1000px #18181b inset !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
 /* iOS Safe Area Utilities for Physical iPhone and iPad Display */
 .pt-safe-notch {
   padding-top: max(env(safe-area-inset-top, 0px), 48px);

@@ -128,13 +128,14 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
 
     const today = new Date().toISOString().split('T')[0];
     onSave({
+      accountId: 'personal',
       type,
       amount: numericAmount,
       currency: 'IQD',
       category: selectedCategory || (type === 'expense' ? 'General Expense' : 'General Income'),
       source: type === 'income' ? selectedCategory || 'Income' : '',
       itemDescription: selectedTag || (type === 'expense' ? 'Quick Expense' : 'Quick Income'),
-      notes: 'Logged via iOS Home Screen Widget Quick Add',
+      notes: 'Logged via iOS Home Screen Widget Quick Add [Personal Vault]',
       date: today,
     });
 
@@ -191,6 +192,16 @@ export const QuickAddPopup: React.FC<QuickAddPopupProps> = ({
           >
             <X className="w-5 h-5" />
           </button>
+        </div>
+
+        {/* Widget Isolation Guard Indicator */}
+        <div className="bg-blue-50 dark:bg-blue-950/40 px-4 py-1.5 flex items-center justify-between text-[11px] border-b border-blue-100 dark:border-blue-900/40">
+          <span className="font-semibold text-blue-700 dark:text-blue-300 flex items-center gap-1">
+            🔒 {language === 'ar' ? 'مقيد بالحساب الشخصي' : 'Bound to Personal Vault'}
+          </span>
+          <span className="text-[10px] text-blue-600/75 dark:text-blue-400/75 font-mono">
+            accountId: personal
+          </span>
         </div>
 
         {/* Type Switcher Segmented Control */}

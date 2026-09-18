@@ -111,8 +111,28 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
           <div className="truncate font-bold text-xs text-[#1C1C1E] dark:text-white">
             {item.itemDescription || translateCat(item.category) || (isIncome ? t.income : t.expenses)}
           </div>
-          <div className="flex items-center gap-1.5 text-[11px] text-[#8E8E93]">
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-[#8E8E93]">
             <span>{isIncome ? (translateCat(item.source) || 'General') : translateCat(item.category)}</span>
+            {item.expenseType && (
+              <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded uppercase ${item.expenseType === 'opex' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'}`}>
+                {item.expenseType.toUpperCase()}
+              </span>
+            )}
+            {item.isTaxDeductible && (
+              <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                TAX
+              </span>
+            )}
+            {item.projectCode && (
+              <span className="px-1.5 py-0.5 text-[9px] font-mono rounded bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
+                {item.projectCode}
+              </span>
+            )}
+            {item.linkedTransferId && (
+              <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                Transfer
+              </span>
+            )}
             {item.notes && (
               <>
                 <span>•</span>
