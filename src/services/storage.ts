@@ -20,524 +20,26 @@ export const INITIAL_ACCOUNTS: AccountProfile[] = [
   {
     id: 'personal',
     type: 'personal',
-    name: 'Personal Vault',
+    name: 'Personal Account',
     currency: 'IQD',
     color: '#007AFF',
     icon: 'User',
-    createdAt: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString(),
-    description: 'Primary personal finance, savings, and living ledger',
+    createdAt: new Date().toISOString(),
+    description: 'Primary personal finance ledger',
     allocatedBudget: 0,
   },
-  {
-    id: 'biz-solar',
-    type: 'business',
-    name: 'Solar Engineering Consulting',
-    currency: 'IQD',
-    color: '#FF9500',
-    icon: 'Building',
-    createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
-    description: 'Clean energy audits, commercial PV design & consulting',
-    allocatedBudget: 35000000,
-    budgetMode: 'plan',
-    steps: [
-      {
-        id: 'step-solar-1',
-        title: 'Phase 1 Site Assessment & LiDAR Drone Surveys',
-        targetAmount: 8500000,
-        allocatedAmount: 8500000,
-        startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        duration: 14,
-        endDate: new Date(Date.now() - 16 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        predecessors: [],
-        status: 'completed',
-      },
-      {
-        id: 'step-solar-2',
-        title: 'CAD Engineering Simulation Licenses & Equipment',
-        targetAmount: 14500000,
-        allocatedAmount: 6000000,
-        startDate: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        duration: 21,
-        endDate: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        predecessors: [{ predecessorId: 'step-solar-1', type: 'FS', lag: 1 }],
-        status: 'in_progress',
-      },
-      {
-        id: 'step-solar-3',
-        title: 'Clean Energy Expo & Strategic Client Acquisition',
-        targetAmount: 12000000,
-        allocatedAmount: 0,
-        startDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        duration: 25,
-        endDate: new Date(Date.now() + 32 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        predecessors: [{ predecessorId: 'step-solar-2', type: 'FS', lag: 0 }],
-        status: 'not_started',
-      },
-    ],
-  },
 ];
 
-export const INITIAL_INVOICES: BusinessInvoice[] = [
-  {
-    id: 'inv-1',
-    accountId: 'biz-solar',
-    type: 'incoming',
-    invoiceNumber: 'INV-2026-081',
-    title: 'Phase 2 Grid-Tied PV Detailed Design Documentation',
-    amount: 14500000,
-    currency: 'IQD',
-    date: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    estimatedDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    taxPercent: 0,
-    taxType: 'add',
-    taxAmount: 0,
-    totalAmount: 14500000,
-    description: 'Clean energy detailed engineering deliverables for Al-Nahrain Clean Energy Corp',
-    status: 'approved',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'inv-2',
-    accountId: 'biz-solar',
-    type: 'incoming',
-    invoiceNumber: 'INV-2026-079',
-    title: 'Commercial Rooftop PV Preliminary Feasibility Audit',
-    amount: 6200000,
-    currency: 'IQD',
-    date: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    estimatedDate: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    taxPercent: 0,
-    taxType: 'add',
-    taxAmount: 0,
-    totalAmount: 6200000,
-    description: 'Site solar radiation audit for Dijlah Commercial Logistics',
-    status: 'submitted',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'inv-3',
-    accountId: 'biz-solar',
-    type: 'outgoing',
-    invoiceNumber: 'BILL-GermanSensors-22',
-    title: 'Solar Radiation Sensors Calibration & Courier Delivery',
-    amount: 2800000,
-    currency: 'IQD',
-    date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    estimatedDate: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    taxPercent: 5,
-    taxType: 'add',
-    taxAmount: 140000,
-    totalAmount: 2940000,
-    description: 'Supplier bill for calibrated pyranometer probes from German Pyranometer Labs GmbH',
-    status: 'approved',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
+export const INITIAL_INVOICES: BusinessInvoice[] = [];
 
-export const INITIAL_TRANSACTIONS: TransactionItem[] = [
-  // Personal transactions
-  {
-    id: 'tx-1',
-    accountId: 'personal',
-    type: 'income',
-    amount: 6600000,
-    currency: 'IQD',
-    date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    category: 'Income',
-    source: 'Salary',
-    itemDescription: 'Monthly Senior Engineer Salary',
-    notes: 'Direct bank transfer from tech firm',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'tx-2',
-    accountId: 'personal',
-    type: 'expense',
-    amount: 1200000,
-    currency: 'IQD',
-    date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    category: 'Rent',
-    source: '',
-    itemDescription: 'Al-Mansour Apartment Rent',
-    notes: 'Paid cash to building owner',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'tx-3',
-    accountId: 'personal',
-    type: 'income',
-    amount: 1250000,
-    currency: 'IQD',
-    date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    category: 'Income',
-    source: 'Freelance',
-    itemDescription: 'iOS App Design & Consulting',
-    notes: 'Client milestone 2 delivery',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'tx-4',
-    accountId: 'personal',
-    type: 'expense',
-    amount: 480000,
-    currency: 'IQD',
-    date: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-    category: 'Food',
-    source: '',
-    itemDescription: 'Family Weekly Groceries (Carrefour)',
-    notes: 'Fresh produce, meat and household supplies',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'tx-5',
-    accountId: 'personal',
-    type: 'expense',
-    amount: 250000,
-    currency: 'IQD',
-    date: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
-    category: 'Car',
-    source: '',
-    itemDescription: 'Fuel & Oil Filter Change',
-    notes: 'Toyota service center',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'tx-6',
-    accountId: 'personal',
-    type: 'expense',
-    amount: 180000,
-    currency: 'IQD',
-    date: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
-    category: 'Bills',
-    source: '',
-    itemDescription: 'Private Generator & Fiber Net',
-    notes: 'Amperage monthly fee + internet',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'tx-7',
-    accountId: 'personal',
-    type: 'expense',
-    amount: 85000,
-    currency: 'IQD',
-    date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-    category: 'Gym',
-    source: '',
-    itemDescription: 'Monthly Fitness Center Pass',
-    notes: 'Al-Rabie Sports Club',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'tx-8',
-    accountId: 'personal',
-    type: 'expense',
-    amount: 140000,
-    currency: 'IQD',
-    date: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
-    category: 'Entertainment',
-    source: '',
-    itemDescription: 'Dinner with Family at Samad',
-    notes: 'Traditional Iraqi masgouf dinner',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
+export const INITIAL_TRANSACTIONS: TransactionItem[] = [];
 
-  // Initial Business Transactions for "Solar Engineering Consulting"
-  {
-    id: 'tx-biz-1',
-    accountId: 'biz-solar',
-    type: 'income',
-    amount: 18500000,
-    currency: 'IQD',
-    date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    category: 'Client Invoicing',
-    source: 'Baghdad Clean Energy Project',
-    itemDescription: 'Phase 1 Solar Array Grid Design Milestone',
-    projectCode: 'PRJ-SOLAR-01',
-    clientContract: 'CNT-2026-BAGHDAD',
-    notes: 'Approved engineering milestone delivery invoice',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'tx-biz-2',
-    accountId: 'biz-solar',
-    type: 'income',
-    amount: 9200000,
-    currency: 'IQD',
-    date: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
-    category: 'Consulting Fee',
-    source: 'Basra Industrial Park',
-    itemDescription: 'Industrial Rooftop Feasibility Study',
-    projectCode: 'PRJ-AUDIT-02',
-    clientContract: 'CNT-2026-BASRA',
-    notes: 'Energy audit completion retainer',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'tx-biz-3',
-    accountId: 'biz-solar',
-    type: 'expense',
-    expenseType: 'opex',
-    isTaxDeductible: true,
-    amount: 4500000,
-    currency: 'IQD',
-    date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    category: 'Payroll & Engineers',
-    source: '',
-    itemDescription: 'Senior Electrical Subcontractors Payroll',
-    projectCode: 'PRJ-SOLAR-01',
-    receiptNote: 'Invoice #SUB-409 with signed timesheets',
-    notes: 'Contractors payroll for CAD drafting and field inspection',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'tx-biz-4',
-    accountId: 'biz-solar',
-    type: 'expense',
-    expenseType: 'opex',
-    isTaxDeductible: true,
-    amount: 850000,
-    currency: 'IQD',
-    date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    category: 'Software & SaaS',
-    source: '',
-    itemDescription: 'AutoCAD & PVsyst Solar Modeling Licenses',
-    receiptNote: 'SaaS receipt #INV-CAD-892',
-    notes: 'Monthly engineering cloud suite for solar simulations',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'tx-biz-5',
-    accountId: 'biz-solar',
-    type: 'expense',
-    expenseType: 'capex',
-    isTaxDeductible: true,
-    amount: 3200000,
-    currency: 'IQD',
-    date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-    category: 'Equipment & Hardware',
-    source: '',
-    itemDescription: 'Thermal Imaging Drone for Solar Panel Testing',
-    projectCode: 'PRJ-SOLAR-01',
-    receiptNote: 'Capital Asset Purchase - 3-Year Depreciation Tax Schedule',
-    notes: 'DJI Enterprise thermal survey hardware with calibrated FLIR sensor',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'tx-biz-6',
-    accountId: 'biz-solar',
-    type: 'expense',
-    expenseType: 'opex',
-    isTaxDeductible: true,
-    amount: 1100000,
-    currency: 'IQD',
-    date: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
-    category: 'Office & Facilities',
-    source: '',
-    itemDescription: 'Engineering Office Rent & High-Speed Fiber',
-    receiptNote: 'Office lease receipt #R-2026-03',
-    notes: 'Monthly commercial workspace share',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
-
-
-export const INITIAL_PLANS: PlanItem[] = [
-  {
-    id: 'plan-1',
-    name: 'Emergency Reserve Fund',
-    targetAmount: 8000000,
-    allocatedAmount: 4500000,
-    currency: 'IQD',
-    startDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    targetDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    priority: 'critical',
-    plannedMonthlyAmount: 600000,
-    planDescription: '6 months of essential living expenses cash cushion',
-    isCompleted: false,
-    steps: [
-      {
-        id: 'step-101',
-        title: 'Tier 1: 1-Month Basic Living Reserve',
-        targetAmount: 2000000,
-        allocatedAmount: 2000000,
-        completedAmount: 2000000,
-        startDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        duration: 30,
-        endDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        predecessors: [],
-        status: 'completed',
-        order: 1,
-        isCritical: true,
-      },
-      {
-        id: 'step-102',
-        title: 'Tier 2: 3-Month Essential Security Cushion',
-        targetAmount: 3000000,
-        allocatedAmount: 2500000,
-        completedAmount: 0,
-        startDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        duration: 60,
-        endDate: new Date(Date.now()).toISOString().split('T')[0],
-        predecessors: [{ predecessorId: 'step-101', type: 'FS', lag: 0 }],
-        status: 'in_progress',
-        order: 2,
-        isCritical: true,
-      },
-      {
-        id: 'step-103',
-        title: 'Tier 3: 6-Month Full Runway & Liquidity Guard',
-        targetAmount: 3000000,
-        allocatedAmount: 0,
-        completedAmount: 0,
-        startDate: new Date(Date.now()).toISOString().split('T')[0],
-        duration: 90,
-        endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        predecessors: [{ predecessorId: 'step-102', type: 'FS', lag: 0 }],
-        status: 'not_started',
-        order: 3,
-        isCritical: true,
-      },
-    ],
-    createdAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date().toISOString(),
-    completedAt: null,
-  },
-  {
-    id: 'plan-2',
-    name: 'New Family SUV Down Payment',
-    targetAmount: 18000000,
-    allocatedAmount: 6500000,
-    currency: 'IQD',
-    startDate: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    targetDate: new Date(Date.now() + 300 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    priority: 'high',
-    plannedMonthlyAmount: 1150000,
-    planDescription: 'Down payment for a reliable Toyota RAV4 or Prado',
-    isCompleted: false,
-    steps: [
-      {
-        id: 'step-201',
-        title: 'Dealer Deposit & Allocation Booking',
-        targetAmount: 3000000,
-        allocatedAmount: 3000000,
-        completedAmount: 3000000,
-        startDate: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        duration: 20,
-        endDate: new Date(Date.now() - 100 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        predecessors: [],
-        status: 'completed',
-        order: 1,
-        isCritical: true,
-      },
-      {
-        id: 'step-202',
-        title: 'Financing Pre-Approval & Credit Guarantee',
-        targetAmount: 1500000,
-        allocatedAmount: 1500000,
-        completedAmount: 1500000,
-        startDate: new Date(Date.now() - 100 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        duration: 25,
-        endDate: new Date(Date.now() - 75 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        predecessors: [{ predecessorId: 'step-201', type: 'FS', lag: 0 }],
-        status: 'completed',
-        order: 2,
-        isCritical: true,
-      },
-      {
-        id: 'step-203',
-        title: 'Vehicle Shipping, Customs & Port Clearance',
-        targetAmount: 5500000,
-        allocatedAmount: 2000000,
-        completedAmount: 0,
-        startDate: new Date(Date.now() - 70 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        duration: 60,
-        endDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        predecessors: [{ predecessorId: 'step-202', type: 'FS', lag: 5 }],
-        status: 'in_progress',
-        order: 3,
-        isCritical: true,
-      },
-      {
-        id: 'step-204',
-        title: 'Traffic Directorate Registration & Insurance',
-        targetAmount: 2000000,
-        allocatedAmount: 0,
-        completedAmount: 0,
-        startDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        duration: 15,
-        endDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        predecessors: [{ predecessorId: 'step-203', type: 'FS', lag: 0 }],
-        status: 'not_started',
-        order: 4,
-        isCritical: true,
-      },
-      {
-        id: 'step-205',
-        title: 'Showroom Final Handover & Plate Clearance',
-        targetAmount: 6000000,
-        allocatedAmount: 0,
-        completedAmount: 0,
-        startDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        duration: 20,
-        endDate: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        predecessors: [
-          { predecessorId: 'step-204', type: 'FS', lag: 0 },
-          { predecessorId: 'step-202', type: 'FF', lag: 100 },
-        ],
-        status: 'not_started',
-        order: 5,
-        isCritical: true,
-      },
-    ],
-    createdAt: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date().toISOString(),
-    completedAt: null,
-  },
-  {
-    id: 'plan-3',
-    name: 'Dubai Tech & Family Holiday',
-    targetAmount: 4000000,
-    allocatedAmount: 4000000,
-    currency: 'IQD',
-    startDate: new Date(Date.now() - 150 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    targetDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    priority: 'medium',
-    plannedMonthlyAmount: 400000,
-    planDescription: 'Flights and hotel accommodation',
-    isCompleted: true,
-    createdAt: new Date(Date.now() - 150 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date().toISOString(),
-    completedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-];
+export const INITIAL_PLANS: PlanItem[] = [];
 
 // Backwards compatibility alias
-export const INITIAL_GOALS: GoalItem[] = INITIAL_PLANS;
+export const INITIAL_GOALS: GoalItem[] = [];
 
-export const INITIAL_BUDGETS: BudgetItem[] = [
-  { id: 'b-1', category: 'Food', monthlyLimit: 750000, createdAt: new Date().toISOString() },
-  { id: 'b-2', category: 'Rent', monthlyLimit: 1200000, createdAt: new Date().toISOString() },
-  { id: 'b-3', category: 'Car', monthlyLimit: 400000, createdAt: new Date().toISOString() },
-  { id: 'b-4', category: 'Bills', monthlyLimit: 250000, createdAt: new Date().toISOString() },
-  { id: 'b-5', category: 'Entertainment', monthlyLimit: 200000, createdAt: new Date().toISOString() },
-];
+export const INITIAL_BUDGETS: BudgetItem[] = [];
 
 export const INITIAL_CATEGORIES: CategoryItem[] = [
   { id: 'c-1', name: 'Food', type: 'expense_category', isDefault: true },
@@ -565,14 +67,22 @@ export class StorageService {
   static loadTransactions(): TransactionItem[] {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
-      const raw: TransactionItem[] = data ? JSON.parse(data) : INITIAL_TRANSACTIONS;
-      // Auto-migrate any untagged transactions to personal account
-      return raw.map(t => ({
-        ...t,
-        accountId: t.accountId || 'personal',
-      }));
+      if (!data) return [];
+      const raw: TransactionItem[] = JSON.parse(data);
+      if (!Array.isArray(raw)) return [];
+      const legacyTxIds = new Set([
+        'tx-1', 'tx-2', 'tx-3', 'tx-4', 'tx-5', 'tx-6', 'tx-7', 'tx-8',
+        'tx-biz-1', 'tx-biz-2', 'tx-biz-3', 'tx-biz-4', 'tx-biz-5', 'tx-biz-6'
+      ]);
+      // Auto-migrate any untagged transactions to personal account & filter legacy mock
+      return raw
+        .filter(t => !legacyTxIds.has(t.id) && t.accountId !== 'biz-solar')
+        .map(t => ({
+          ...t,
+          accountId: t.accountId || 'personal',
+        }));
     } catch {
-      return INITIAL_TRANSACTIONS;
+      return [];
     }
   }
 
@@ -608,25 +118,13 @@ export class StorageService {
       if (data) {
         const parsed: AccountProfile[] = JSON.parse(data);
         if (Array.isArray(parsed) && parsed.length > 0) {
+          // Filter out legacy hardcoded 'biz-solar' account
+          const cleaned = parsed.filter(a => a.id !== 'biz-solar');
           // Ensure personal account always exists as index 0
-          if (!parsed.some(a => a.id === 'personal')) {
-            parsed.unshift(INITIAL_ACCOUNTS[0]);
+          if (!cleaned.some(a => a.id === 'personal')) {
+            cleaned.unshift(INITIAL_ACCOUNTS[0]);
           }
-          // Merge initial steps & budgetMode for biz-solar if missing
-          const enriched = parsed.map(acc => {
-            if (acc.id === 'biz-solar' && (!acc.steps || acc.steps.length === 0)) {
-              const initMatch = INITIAL_ACCOUNTS.find(ia => ia.id === acc.id);
-              if (initMatch) {
-                return {
-                  ...acc,
-                  budgetMode: acc.budgetMode || initMatch.budgetMode || 'plan',
-                  steps: initMatch.steps,
-                };
-              }
-            }
-            return acc;
-          });
-          return enriched;
+          return cleaned;
         }
       }
       return INITIAL_ACCOUNTS;
@@ -642,6 +140,7 @@ export class StorageService {
   static getActiveAccountId(): string {
     try {
       const active = localStorage.getItem(STORAGE_KEYS.ACTIVE_ACCOUNT_ID);
+      if (active === 'biz-solar') return 'personal';
       return active || 'personal';
     } catch {
       return 'personal';
@@ -658,7 +157,9 @@ export class StorageService {
       if (!data) return INITIAL_INVOICES;
       const parsed = JSON.parse(data);
       if (!Array.isArray(parsed)) return INITIAL_INVOICES;
-      return parsed.map((inv: any) => {
+      const legacyInvIds = new Set(['inv-1', 'inv-2', 'inv-3']);
+      const valid = parsed.filter((i: any) => !legacyInvIds.has(i.id) && i.accountId !== 'biz-solar');
+      return valid.map((inv: any) => {
         const type: 'incoming' | 'outgoing' =
           inv.type || (inv.direction === 'payable' ? 'outgoing' : 'incoming');
         let status: BusinessInvoiceStatus = 'not_submitted';
@@ -675,7 +176,7 @@ export class StorageService {
 
         return {
           id: inv.id || `inv-${Date.now()}`,
-          accountId: inv.accountId || 'biz-solar',
+          accountId: inv.accountId || 'personal',
           type,
           invoiceNumber: inv.invoiceNumber || 'INV-2026-001',
           title: inv.title || inv.clientOrVendorName || inv.itemsSummary || 'Invoice',
@@ -710,13 +211,77 @@ export class StorageService {
 
   /**
    * Automated backward compatibility migration
-   * 1. Assigns accountId = 'personal' to any transaction, budget, or plan missing an accountId.
-   * 2. Creates the default 'personal' workspace profile if missing.
-   * 3. Initializes storage structures for up to 5 business accounts.
-   * 4. Upgrades legacy invoice structures into BusinessInvoice.
+   * 1. Purges legacy hardcoded mock/seed data.
+   * 2. Assigns accountId = 'personal' to any transaction, budget, or plan missing an accountId.
+   * 3. Creates the default 'personal' workspace profile if missing.
    */
   static runMigration(): void {
     try {
+      // 0. Purge legacy mock/demo data
+      const SEED_PURGED_KEY = 'finance_app_seed_purged_v3';
+      if (!localStorage.getItem(SEED_PURGED_KEY)) {
+        // Clean transactions
+        const txData = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
+        if (txData) {
+          const txs = JSON.parse(txData);
+          if (Array.isArray(txs)) {
+            const legacyTxIds = new Set([
+              'tx-1', 'tx-2', 'tx-3', 'tx-4', 'tx-5', 'tx-6', 'tx-7', 'tx-8',
+              'tx-biz-1', 'tx-biz-2', 'tx-biz-3', 'tx-biz-4', 'tx-biz-5', 'tx-biz-6'
+            ]);
+            const cleanedTxs = txs.filter((t: any) => !legacyTxIds.has(t.id) && t.accountId !== 'biz-solar');
+            localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(cleanedTxs));
+          }
+        }
+        // Clean accounts
+        const accData = localStorage.getItem(STORAGE_KEYS.ACCOUNTS);
+        if (accData) {
+          const accs = JSON.parse(accData);
+          if (Array.isArray(accs)) {
+            const cleanedAccs = accs.filter((a: any) => a.id !== 'biz-solar');
+            if (!cleanedAccs.some((a: any) => a.id === 'personal')) {
+              cleanedAccs.unshift(INITIAL_ACCOUNTS[0]);
+            }
+            localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(cleanedAccs));
+          }
+        }
+        // Clean plans
+        const planData = localStorage.getItem(STORAGE_KEYS.PLANS);
+        if (planData) {
+          const plans = JSON.parse(planData);
+          if (Array.isArray(plans)) {
+            const legacyPlanIds = new Set(['plan-1', 'plan-2', 'plan-3']);
+            const cleanedPlans = plans.filter((p: any) => !legacyPlanIds.has(p.id));
+            localStorage.setItem(STORAGE_KEYS.PLANS, JSON.stringify(cleanedPlans));
+          }
+        }
+        // Clean invoices
+        const invData = localStorage.getItem(STORAGE_KEYS.INVOICES);
+        if (invData) {
+          const invs = JSON.parse(invData);
+          if (Array.isArray(invs)) {
+            const legacyInvIds = new Set(['inv-1', 'inv-2', 'inv-3']);
+            const cleanedInvs = invs.filter((i: any) => !legacyInvIds.has(i.id) && i.accountId !== 'biz-solar');
+            localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(cleanedInvs));
+          }
+        }
+        // Clean budgets
+        const budData = localStorage.getItem(STORAGE_KEYS.BUDGETS);
+        if (budData) {
+          const buds = JSON.parse(budData);
+          if (Array.isArray(buds)) {
+            const legacyBudgetIds = new Set(['b-1', 'b-2', 'b-3', 'b-4', 'b-5']);
+            const cleanedBuds = buds.filter((b: any) => !legacyBudgetIds.has(b.id));
+            localStorage.setItem(STORAGE_KEYS.BUDGETS, JSON.stringify(cleanedBuds));
+          }
+        }
+        // Reset active account if it was biz-solar
+        if (localStorage.getItem(STORAGE_KEYS.ACTIVE_ACCOUNT_ID) === 'biz-solar') {
+          localStorage.setItem(STORAGE_KEYS.ACTIVE_ACCOUNT_ID, 'personal');
+        }
+        localStorage.setItem(SEED_PURGED_KEY, 'true');
+      }
+
       // 1. Transactions migration
       const txData = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
       if (txData) {
@@ -784,10 +349,6 @@ export class StorageService {
         accounts.unshift(INITIAL_ACCOUNTS[0]);
       }
       localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(accounts));
-
-      // 5. Invoices migration
-      const invoices = this.loadInvoices();
-      this.saveInvoices(invoices);
     } catch (err) {
       console.warn('Migration warning:', err);
     }
@@ -811,34 +372,14 @@ export class StorageService {
       const plansData = localStorage.getItem(STORAGE_KEYS.PLANS);
       if (plansData) {
         const parsed: PlanItem[] = JSON.parse(plansData);
-        // Merge initial steps for default sample plans if missing
-        const enriched = parsed.map(item => {
-          if (!item.steps || item.steps.length === 0) {
-            const initMatch = INITIAL_PLANS.find(ip => ip.id === item.id);
-            if (initMatch?.steps && initMatch.steps.length > 0) {
-              return { ...item, steps: initMatch.steps };
-            }
-          }
-          return item;
-        });
-        return enriched;
+        if (Array.isArray(parsed)) {
+          const legacyPlanIds = new Set(['plan-1', 'plan-2', 'plan-3']);
+          return parsed.filter(p => !legacyPlanIds.has(p.id));
+        }
       }
-      // Migrate from legacy goals if present
-      const legacyData = localStorage.getItem(STORAGE_KEYS.GOALS_LEGACY);
-      if (legacyData) {
-        const parsed = JSON.parse(legacyData);
-        const migrated: PlanItem[] = parsed.map((item: any) => ({
-          ...item,
-          priority: item.priority || 'medium',
-          plannedMonthlyAmount: item.plannedMonthlyAmount || Math.round(item.targetAmount / 12),
-          planDescription: item.planDescription || item.goalDescription || '',
-        }));
-        this.savePlans(migrated);
-        return migrated;
-      }
-      return INITIAL_PLANS;
+      return [];
     } catch {
-      return INITIAL_PLANS;
+      return [];
     }
   }
 
@@ -879,9 +420,16 @@ export class StorageService {
   static loadBudgets(): BudgetItem[] {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.BUDGETS);
-      return data ? JSON.parse(data) : INITIAL_BUDGETS;
+      if (data) {
+        const parsed: BudgetItem[] = JSON.parse(data);
+        if (Array.isArray(parsed)) {
+          const legacyBudgetIds = new Set(['b-1', 'b-2', 'b-3', 'b-4', 'b-5']);
+          return parsed.filter(b => !legacyBudgetIds.has(b.id));
+        }
+      }
+      return [];
     } catch {
-      return INITIAL_BUDGETS;
+      return [];
     }
   }
 

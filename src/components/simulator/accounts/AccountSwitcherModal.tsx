@@ -270,7 +270,7 @@ export const AccountSwitcherModal: React.FC<AccountSwitcherModalProps> = ({
                   type="text"
                   value={nameInput}
                   onChange={e => setNameInput(e.target.value)}
-                  placeholder="e.g. Solar Engineering Consulting"
+                  placeholder={language === 'ar' ? 'مثال: شركة التجارة والخدمات' : 'e.g. Trading & Commercial Services'}
                   maxLength={40}
                   className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#1C1C1E] text-sm text-[#1C1C1E] dark:text-white border border-[#D1D1D6] dark:border-[#38383A] focus:border-[#007AFF] outline-none"
                   autoFocus

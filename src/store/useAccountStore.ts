@@ -102,7 +102,7 @@ export function useAccountStore() {
       color: data.color || '#FF9500',
       icon: data.icon || 'Building',
       description: data.description?.trim() || '',
-      allocatedBudget: data.allocatedBudget !== undefined ? Math.max(0, data.allocatedBudget) : 35000000,
+      allocatedBudget: data.allocatedBudget !== undefined ? Math.max(0, data.allocatedBudget) : 0,
       createdAt: new Date().toISOString(),
     };
 
@@ -533,7 +533,7 @@ export function useAccountStore() {
       : 0;
     const allocatedBudget = (isPlanMode && planRollup > 0)
       ? planRollup
-      : (account?.allocatedBudget ?? 35000000);
+      : (account?.allocatedBudget ?? 0);
 
     let totalIncome = 0;
     let totalExpenses = 0;

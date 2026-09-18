@@ -46,9 +46,9 @@ export const BusinessBudgetSetupModal: React.FC<BusinessBudgetSetupModalProps> =
   );
 
   // Bulk Mode state
-  const initialBulk = account.allocatedBudget || 35000000;
+  const initialBulk = account.allocatedBudget || 0;
   const [bulkDisplay, setBulkDisplay] = useState<string>(
-    initialBulk.toLocaleString('en-US')
+    initialBulk > 0 ? initialBulk.toLocaleString('en-US') : ''
   );
   const [bulkAmount, setBulkAmount] = useState<number>(initialBulk);
 
@@ -57,43 +57,8 @@ export const BusinessBudgetSetupModal: React.FC<BusinessBudgetSetupModalProps> =
     if (account.steps && account.steps.length > 0) {
       return JSON.parse(JSON.stringify(account.steps));
     }
-    const todayStr = new Date().toISOString().split('T')[0];
-    return [
-      {
-        id: 'biz-step-1',
-        title: language === 'ar' ? 'تأسيس وتجهيز المقر والمعدات' : 'Procure Equipment & Operational Setup',
-        targetAmount: 15000000,
-        allocatedAmount: 0,
-        startDate: todayStr,
-        duration: 21,
-        endDate: addDays(todayStr, 21),
-        predecessors: [],
-        status: 'not_started',
-      },
-      {
-        id: 'biz-step-2',
-        title: language === 'ar' ? 'حملة التسويق الرقمي والمبيعات' : 'Marketing Campaign & Client Acquisition',
-        targetAmount: 10000000,
-        allocatedAmount: 0,
-        startDate: addDays(todayStr, 22),
-        duration: 30,
-        endDate: addDays(todayStr, 52),
-        predecessors: [{ predecessorId: 'biz-step-1', type: 'FS', lag: 1 }],
-        status: 'not_started',
-      },
-      {
-        id: 'biz-step-3',
-        title: language === 'ar' ? 'المخزون والتشغيل الأولي' : 'Initial Inventory & Supply Reserve',
-        targetAmount: 10000000,
-        allocatedAmount: 0,
-        startDate: addDays(todayStr, 30),
-        duration: 45,
-        endDate: addDays(todayStr, 75),
-        predecessors: [{ predecessorId: 'biz-step-1', type: 'SS', lag: 9 }],
-        status: 'not_started',
-      },
-    ];
-  }, [account.steps, language]);
+    return [];
+  }, [account.steps]);
 
   const [steps, setSteps] = useState<PlanStep[]>(defaultSteps);
 
@@ -101,16 +66,16 @@ export const BusinessBudgetSetupModal: React.FC<BusinessBudgetSetupModalProps> =
   useEffect(() => {
     if (isOpen) {
       setBudgetMode(account.budgetMode || (account.steps && account.steps.length > 0 ? 'plan' : 'bulk'));
-      const amt = account.allocatedBudget || 35000000;
+      const amt = account.allocatedBudget || 0;
       setBulkAmount(amt);
-      setBulkDisplay(amt.toLocaleString('en-US'));
+      setBulkDisplay(amt > 0 ? amt.toLocaleString('en-US') : '');
       if (account.steps && account.steps.length > 0) {
         setSteps(JSON.parse(JSON.stringify(account.steps)));
       } else {
-        setSteps(defaultSteps);
+        setSteps([]);
       }
     }
-  }, [isOpen, account, defaultSteps]);
+  }, [isOpen, account]);
 
   // Bulk input formatter
   const handleBulkChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -227,7 +192,7 @@ export const BusinessBudgetSetupModal: React.FC<BusinessBudgetSetupModalProps> =
     const newStep: PlanStep = {
       id: `biz-step-${Date.now().toString(36)}`,
       title: language === 'ar' ? `المرحلة التشغيلية #${nextIdx}` : `Operational Phase #${nextIdx}`,
-      targetAmount: 5000000,
+      targetAmount: 0,
       allocatedAmount: 0,
       startDate: newStart,
       duration: newDur,
@@ -239,10 +204,6 @@ export const BusinessBudgetSetupModal: React.FC<BusinessBudgetSetupModalProps> =
   };
 
   const handleDeleteStep = (id: string) => {
-    if (steps.length <= 1) {
-      alert(language === 'ar' ? 'يجب أن تحتوي خطة العمل على مرحلة واحدة على الأقل.' : 'A business plan must contain at least one step.');
-      return;
-    }
     setSteps(prev => {
       // Remove step and any references to it as a predecessor
       return prev
@@ -517,8 +478,23 @@ export const BusinessBudgetSetupModal: React.FC<BusinessBudgetSetupModalProps> =
               </div>
 
               {/* Steps Items */}
-              <div className="space-y-3">
-                {steps.map((step, index) => {
+              {steps.length === 0 ? (
+                <div className="text-center py-8 px-4 rounded-2xl bg-[#F9F9FB] dark:bg-[#1C1C1E] border border-dashed border-[#E5E5EA] dark:border-[#38383A]">
+                  <p className="text-xs text-[#8E8E93] mb-2 font-medium">
+                    {language === 'ar' ? 'لا توجد مراحل محددة بعد. أضف مرحلة لبدء بناء خطة الميزانية.' : 'No operational steps added yet. Add a step to build your budget plan.'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleAddNewStep}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 text-xs font-bold shadow-xs transition-all active:scale-95"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    {language === 'ar' ? 'إضافة أول مرحلة' : 'Add First Step'}
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {steps.map((step, index) => {
                   const otherSteps = steps.filter(s => s.id !== step.id);
                   const stepEndDate = step.endDate || addDays(step.startDate, step.duration || 14);
 
@@ -652,7 +628,8 @@ export const BusinessBudgetSetupModal: React.FC<BusinessBudgetSetupModalProps> =
                     </div>
                   );
                 })}
-              </div>
+                </div>
+              )}
             </div>
           )}
         </div>

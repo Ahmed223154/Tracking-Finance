@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   AccountProfile,
   TransactionItem,
@@ -6,13 +6,10 @@ import {
 import {
   X,
   ArrowRightLeft,
-  ArrowRight,
   ArrowDown,
   Building,
-  User,
   AlertCircle,
   CheckCircle2,
-  Banknote,
 } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 
@@ -42,13 +39,9 @@ export const TransferModal: React.FC<TransferModalProps> = ({
 }) => {
   const { language, formatCurrency } = useI18n();
 
-  // Pickers state
-  const defaultSource = activeAccountId;
-  const otherAccounts = accounts.filter(a => a.id !== defaultSource);
-  const defaultDest = otherAccounts.length > 0 ? otherAccounts[0].id : '';
-
-  const [fromAccountId, setFromAccountId] = useState<string>(defaultSource);
-  const [toAccountId, setToAccountId] = useState<string>(defaultDest);
+  // Controlled pickers state
+  const [fromAccountId, setFromAccountId] = useState<string>(activeAccountId || accounts[0]?.id || '');
+  const [toAccountId, setToAccountId] = useState<string>('');
   const [displayAmount, setDisplayAmount] = useState<string>('');
   const [amount, setAmount] = useState<number>(0);
   const [noteInput, setNoteInput] = useState<string>('');
@@ -58,9 +51,35 @@ export const TransferModal: React.FC<TransferModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
 
+  // Auto-sync valid accounts when modal opens or account list updates
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Validate fromAccountId
+    let currentFrom = fromAccountId;
+    if (!currentFrom || !accounts.some(a => a.id === currentFrom)) {
+      currentFrom = accounts.some(a => a.id === activeAccountId)
+        ? activeAccountId
+        : (accounts[0]?.id || '');
+    }
+
+    // Validate toAccountId
+    let currentTo = toAccountId;
+    const validDests = accounts.filter(a => a.id !== currentFrom);
+    if (!currentTo || !accounts.some(a => a.id === currentTo) || currentTo === currentFrom) {
+      currentTo = validDests.length > 0 ? validDests[0].id : '';
+    }
+
+    setFromAccountId(currentFrom);
+    setToAccountId(currentTo);
+    setErrorMessage(null);
+    setIsSuccess(false);
+  }, [isOpen, accounts, activeAccountId]);
+
   if (!isOpen) return null;
 
   const getAccountBalance = (accId: string) => {
+    if (!accId) return 0;
     const accTxs = transactions.filter(t => (t.accountId || 'personal') === accId);
     let income = 0;
     let expense = 0;
@@ -71,10 +90,44 @@ export const TransferModal: React.FC<TransferModalProps> = ({
     return income - expense;
   };
 
-  const sourceAccount = accounts.find(a => a.id === fromAccountId) || accounts[0];
-  const destAccount = accounts.find(a => a.id === toAccountId) || accounts[1] || accounts[0];
+  const sourceAccount = accounts.find(a => a.id === fromAccountId) || accounts[0] || {
+    id: 'personal',
+    name: 'Personal Account',
+    type: 'personal',
+    currency: 'IQD',
+  };
+  const destAccount = accounts.find(a => a.id === toAccountId) || accounts.find(a => a.id !== fromAccountId) || accounts[0] || {
+    id: 'personal',
+    name: 'Personal Account',
+    type: 'personal',
+    currency: 'IQD',
+  };
+
   const sourceBalance = getAccountBalance(fromAccountId);
   const destBalance = getAccountBalance(toAccountId);
+
+  // Available destination accounts (exclude source account to prevent collision)
+  const availableDestAccounts = accounts.filter(a => a.id !== fromAccountId);
+
+  const handleSourceChange = (newFromId: string) => {
+    setFromAccountId(newFromId);
+    setErrorMessage(null);
+    // If destination matches new source, select an alternative destination
+    if (toAccountId === newFromId) {
+      const alt = accounts.find(a => a.id !== newFromId);
+      setToAccountId(alt ? alt.id : '');
+    }
+  };
+
+  const handleDestChange = (newToId: string) => {
+    setToAccountId(newToId);
+    setErrorMessage(null);
+    // If source matches new destination, select an alternative source
+    if (fromAccountId === newToId) {
+      const alt = accounts.find(a => a.id !== newToId);
+      setFromAccountId(alt ? alt.id : '');
+    }
+  };
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -114,6 +167,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
   ];
 
   const handleSwap = () => {
+    if (!fromAccountId || !toAccountId || fromAccountId === toAccountId) return;
     const prevFrom = fromAccountId;
     const prevTo = toAccountId;
     setFromAccountId(prevTo);
@@ -125,6 +179,15 @@ export const TransferModal: React.FC<TransferModalProps> = ({
     e.preventDefault();
     setErrorMessage(null);
 
+    if (!fromAccountId || !toAccountId) {
+      setErrorMessage(
+        language === 'ar'
+          ? 'يرجى اختيار حساب المصدر وحساب المستلم.'
+          : 'Please select both source and destination accounts.'
+      );
+      return;
+    }
+
     if (fromAccountId === toAccountId) {
       setErrorMessage(
         language === 'ar'
@@ -134,11 +197,11 @@ export const TransferModal: React.FC<TransferModalProps> = ({
       return;
     }
 
-    if (amount <= 0) {
+    if (!amount || amount <= 0 || isNaN(amount)) {
       setErrorMessage(
         language === 'ar'
-          ? 'يرجى إدخال مبلغ تحويل صالح.'
-          : 'Please enter a valid transfer amount.'
+          ? 'يرجى إدخال مبلغ تحويل صالح أكبر من الصفر.'
+          : 'Transfer amount must be greater than zero.'
       );
       return;
     }
@@ -195,6 +258,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
             </div>
           </div>
           <button
+            id="close-transfer-modal"
             onClick={onClose}
             className="p-1.5 rounded-full bg-[#F2F2F7] dark:bg-[#2C2C2E] text-[#8E8E93] hover:text-[#1C1C1E] dark:hover:text-white transition-colors"
           >
@@ -217,6 +281,31 @@ export const TransferModal: React.FC<TransferModalProps> = ({
               {language === 'ar' ? 'إلى' : 'to'}{' '}
               <span className="font-semibold text-[#1C1C1E] dark:text-white">{destAccount.name}</span>
             </p>
+          </div>
+        ) : accounts.length < 2 ? (
+          /* Guard for accounts count < 2 */
+          <div className="p-8 text-center space-y-4">
+            <div className="mx-auto h-12 w-12 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center">
+              <Building className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-[#1C1C1E] dark:text-white">
+                {language === 'ar' ? 'يتطلب التحويل حسابين على الأقل' : 'At Least 2 Accounts Required'}
+              </h3>
+              <p className="text-xs text-[#8E8E93] mt-1 max-w-xs mx-auto leading-relaxed">
+                {language === 'ar'
+                  ? 'يرجى إنشاء حساب أعمال إضافي من خلال محوّل الحسابات في أعلى الشاشة للتمكن من إجراء التحويلات المالية.'
+                  : 'Please create a business account using the Account Switcher at the top of the screen to enable fund transfers.'}
+              </p>
+            </div>
+            <button
+              id="close-transfer-insufficient-accounts"
+              type="button"
+              onClick={onClose}
+              className="px-6 py-2.5 rounded-xl bg-[#007AFF] text-white text-xs font-bold shadow-md active:scale-95 transition-all"
+            >
+              {language === 'ar' ? 'حسناً، فهمت' : 'Understood'}
+            </button>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto no-scrollbar">
@@ -243,9 +332,10 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                   </span>
                 </div>
                 <select
+                  id="transfer-from-account"
                   value={fromAccountId}
-                  onChange={e => setFromAccountId(e.target.value)}
-                  className="w-full bg-white dark:bg-[#1C1C1E] border border-[#D1D1D6] dark:border-[#38383A] rounded-xl px-3 py-2 text-sm font-semibold text-[#1C1C1E] dark:text-white outline-none focus:border-[#007AFF]"
+                  onChange={e => handleSourceChange(e.target.value)}
+                  className="w-full min-h-[44px] bg-white dark:bg-[#1C1C1E] border border-[#D1D1D6] dark:border-[#38383A] rounded-xl px-3 py-2 text-sm font-semibold text-[#1C1C1E] dark:text-white outline-none focus:border-[#007AFF] cursor-pointer"
                 >
                   {accounts.map(acc => (
                     <option key={acc.id} value={acc.id}>
@@ -258,6 +348,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
               {/* Swap Button */}
               <div className="flex justify-center -my-2 relative z-10">
                 <button
+                  id="transfer-swap-accounts"
                   type="button"
                   onClick={handleSwap}
                   className="h-8 w-8 rounded-full bg-white dark:bg-[#1C1C1E] border border-[#D1D1D6] dark:border-[#38383A] shadow-md flex items-center justify-center text-[#007AFF] hover:scale-110 active:scale-95 transition-all"
@@ -281,12 +372,13 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                   </span>
                 </div>
                 <select
+                  id="transfer-to-account"
                   value={toAccountId}
-                  onChange={e => setToAccountId(e.target.value)}
-                  className="w-full bg-white dark:bg-[#1C1C1E] border border-[#D1D1D6] dark:border-[#38383A] rounded-xl px-3 py-2 text-sm font-semibold text-[#1C1C1E] dark:text-white outline-none focus:border-[#007AFF]"
+                  onChange={e => handleDestChange(e.target.value)}
+                  className="w-full min-h-[44px] bg-white dark:bg-[#1C1C1E] border border-[#D1D1D6] dark:border-[#38383A] rounded-xl px-3 py-2 text-sm font-semibold text-[#1C1C1E] dark:text-white outline-none focus:border-[#007AFF] cursor-pointer"
                 >
-                  {accounts.map(acc => (
-                    <option key={acc.id} value={acc.id} disabled={acc.id === fromAccountId}>
+                  {availableDestAccounts.map(acc => (
+                    <option key={acc.id} value={acc.id}>
                       {acc.name} ({acc.type === 'personal' ? 'Personal' : 'Business'})
                     </option>
                   ))}
@@ -301,6 +393,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
               </label>
               <div className="relative w-full">
                 <input
+                  id="transfer-amount-input"
                   type="text"
                   inputMode="decimal"
                   value={displayAmount}
@@ -318,6 +411,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                 {quickPresets.map(p => (
                   <button
                     key={p.label}
+                    id={`transfer-preset-${p.label}`}
                     type="button"
                     onClick={() => {
                       setDisplayAmount(p.val.toLocaleString('en-US'));
@@ -338,6 +432,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                 {language === 'ar' ? 'بيان أو سبب التحويل' : 'Reference Memo / Purpose'}
               </label>
               <input
+                id="transfer-memo-input"
                 type="text"
                 value={noteInput}
                 onChange={e => setNoteInput(e.target.value)}
@@ -353,6 +448,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                 {language === 'ar' ? 'تاريخ المعاملة' : 'Transfer Date'}
               </label>
               <input
+                id="transfer-date-input"
                 type="date"
                 value={transferDate}
                 onChange={e => setTransferDate(e.target.value)}
@@ -363,6 +459,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
             {/* Submit Button */}
             <div className="pt-2">
               <button
+                id="execute-transfer-submit-btn"
                 type="submit"
                 className="w-full py-3 rounded-2xl bg-[#007AFF] text-white text-sm font-bold hover:bg-[#0062CC] transition-all shadow-md shadow-blue-500/25 flex items-center justify-center gap-2 active:scale-98"
               >
