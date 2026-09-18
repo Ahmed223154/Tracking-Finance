@@ -16,7 +16,26 @@ def configure_project():
         content = f.read()
 
     if "FW0000000000000000000060" in content:
-        print("FinanceWidget target already present in project.pbxproj.")
+        print("FinanceWidget target present in project.pbxproj. Ensuring settings are aligned...")
+        # Ensure bundle ID is com.ahmedalrubaye.financeapp.widget
+        content = content.replace("com.ahmedalrubaye.financeapp.FinanceWidget", "com.ahmedalrubaye.financeapp.widget")
+        # Ensure deployment target is 16.0
+        content = content.replace("IPHONEOS_DEPLOYMENT_TARGET = 15.0;", "IPHONEOS_DEPLOYMENT_TARGET = 16.0;")
+        # Ensure entitlements for App
+        if "CODE_SIGN_ENTITLEMENTS = App/App.entitlements;" not in content:
+            content = content.replace(
+                "INFOPLIST_FILE = App/Info.plist;",
+                "CODE_SIGN_ENTITLEMENTS = App/App.entitlements;\n\t\t\t\tINFOPLIST_FILE = App/Info.plist;"
+            )
+        # Ensure entitlements for FinanceWidget
+        if "CODE_SIGN_ENTITLEMENTS = FinanceWidget/FinanceWidget.entitlements;" not in content:
+            content = content.replace(
+                "INFOPLIST_FILE = FinanceWidget/Info.plist;",
+                "CODE_SIGN_ENTITLEMENTS = FinanceWidget/FinanceWidget.entitlements;\n\t\t\t\tINFOPLIST_FILE = FinanceWidget/Info.plist;"
+            )
+        with open(pbx_path, "w") as f:
+            f.write(content)
+        print("Settings verified and aligned.")
         return
 
     print("Configuring FinanceWidget target in project.pbxproj...")
@@ -63,6 +82,7 @@ def configure_project():
     file_ref_insert = """\t\tFW0000000000000000000001 /* FinanceWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceWidget.swift; sourceTree = "<group>"; };
 \t\tFW0000000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 \t\tFW0000000000000000000003 /* FinanceWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FinanceWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+\t\tFW0000000000000000000004 /* FinanceWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FinanceWidget.entitlements; sourceTree = "<group>"; };
 """
     content = content.replace("/* Begin PBXFileReference section */\n", "/* Begin PBXFileReference section */\n" + file_ref_insert)
 
@@ -100,6 +120,7 @@ def configure_project():
 \t\t\tchildren = (
 \t\t\t\tFW0000000000000000000001 /* FinanceWidget.swift */,
 \t\t\t\tFW0000000000000000000002 /* Info.plist */,
+\t\t\t\tFW0000000000000000000004 /* FinanceWidget.entitlements */,
 \t\t\t);
 \t\t\tpath = FinanceWidget;
 \t\t\tsourceTree = "<group>";
@@ -209,19 +230,21 @@ def configure_project():
     widget_configs = """\t\tFW0000000000000000000081 /* Debug */ = {
 \t\t\tisa = XCBuildConfiguration;
 \t\t\tbuildSettings = {
+\t\t\t\tARCHS = arm64;
 \t\t\t\tCLANG_ENABLE_MODULES = YES;
+\t\t\t\tCODE_SIGN_ENTITLEMENTS = FinanceWidget/FinanceWidget.entitlements;
 \t\t\t\tCODE_SIGN_STYLE = Automatic;
 \t\t\t\tCURRENT_PROJECT_VERSION = 1;
 \t\t\t\tGENERATE_INFOPLIST_FILE = NO;
 \t\t\t\tINFOPLIST_FILE = FinanceWidget/Info.plist;
-\t\t\t\tIPHONEOS_DEPLOYMENT_TARGET = 15.0;
+\t\t\t\tIPHONEOS_DEPLOYMENT_TARGET = 16.0;
 \t\t\t\tLD_RUNPATH_SEARCH_PATHS = (
 \t\t\t\t\t"$(inherited)",
 \t\t\t\t\t"@executable_path/Frameworks",
 \t\t\t\t\t"@executable_path/../../Frameworks",
 \t\t\t\t);
 \t\t\t\tMARKETING_VERSION = 1.0;
-\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.ahmedalrubaye.financeapp.FinanceWidget;
+\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.ahmedalrubaye.financeapp.widget;
 \t\t\t\tPRODUCT_NAME = "$(TARGET_NAME)";
 \t\t\t\tSKIP_INSTALL = YES;
 \t\t\t\tSWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -229,25 +252,28 @@ def configure_project():
 \t\t\t\tSWIFT_OPTIMIZATION_LEVEL = "-Onone";
 \t\t\t\tSWIFT_VERSION = 5.0;
 \t\t\t\tTARGETED_DEVICE_FAMILY = "1,2";
+\t\t\t\tVALID_ARCHS = arm64;
 \t\t\t};
 \t\t\tname = Debug;
 \t\t};
 \t\tFW0000000000000000000082 /* Release */ = {
 \t\t\tisa = XCBuildConfiguration;
 \t\t\tbuildSettings = {
+\t\t\t\tARCHS = arm64;
 \t\t\t\tCLANG_ENABLE_MODULES = YES;
+\t\t\t\tCODE_SIGN_ENTITLEMENTS = FinanceWidget/FinanceWidget.entitlements;
 \t\t\t\tCODE_SIGN_STYLE = Automatic;
 \t\t\t\tCURRENT_PROJECT_VERSION = 1;
 \t\t\t\tGENERATE_INFOPLIST_FILE = NO;
 \t\t\t\tINFOPLIST_FILE = FinanceWidget/Info.plist;
-\t\t\t\tIPHONEOS_DEPLOYMENT_TARGET = 15.0;
+\t\t\t\tIPHONEOS_DEPLOYMENT_TARGET = 16.0;
 \t\t\t\tLD_RUNPATH_SEARCH_PATHS = (
 \t\t\t\t\t"$(inherited)",
 \t\t\t\t\t"@executable_path/Frameworks",
 \t\t\t\t\t"@executable_path/../../Frameworks",
 \t\t\t\t);
 \t\t\t\tMARKETING_VERSION = 1.0;
-\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.ahmedalrubaye.financeapp.FinanceWidget;
+\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.ahmedalrubaye.financeapp.widget;
 \t\t\t\tPRODUCT_NAME = "$(TARGET_NAME)";
 \t\t\t\tSKIP_INSTALL = YES;
 \t\t\t\tSWIFT_COMPILATION_MODE = wholemodule;
@@ -256,6 +282,7 @@ def configure_project():
 \t\t\t\tSWIFT_VERSION = 5.0;
 \t\t\t\tTARGETED_DEVICE_FAMILY = "1,2";
 \t\t\t\tVALIDATE_PRODUCT = YES;
+\t\t\t\tVALID_ARCHS = arm64;
 \t\t\t};
 \t\t\tname = Release;
 \t\t};

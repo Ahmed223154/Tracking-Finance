@@ -59,27 +59,10 @@ jobs:
 
       - name: Package Payload into Sideloadly-Ready .ipa
         run: |
-          mkdir -p Payload
-          cp -r derived_data/Build/Products/Release-iphoneos/App.app Payload/
-          
-          # Verify the native extension was built and embedded by Xcode
-          if [ -d "derived_data/Build/Products/Release-iphoneos/FinanceWidget.appex" ] && [ ! -d "Payload/App.app/PlugIns/FinanceWidget.appex" ]; then
-            mkdir -p Payload/App.app/PlugIns
-            cp -r derived_data/Build/Products/Release-iphoneos/FinanceWidget.appex Payload/App.app/PlugIns/
-          fi
-
-          # Ad-hoc codesign the extension bundle for on-device resigning tools (SideStore / AltStore)
-          if [ -d "Payload/App.app/PlugIns/FinanceWidget.appex" ]; then
-            codesign --force --sign - "Payload/App.app/PlugIns/FinanceWidget.appex"
-          fi
-          
-          echo "=== PlugIns Contents ==="
-          ls -la Payload/App.app/PlugIns/ || echo "PlugIns folder not found!"
+          bash scripts/package-ipa.sh derived_data
           
           echo "=== Verifying Mach-O Architecture ==="
-          file Payload/App.app/PlugIns/FinanceWidget.appex/FinanceWidget
-          
-          zip -r App.ipa Payload
+          file Payload/App.app/PlugIns/FinanceWidget.appex/FinanceWidget || true
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4

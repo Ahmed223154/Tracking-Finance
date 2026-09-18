@@ -491,20 +491,29 @@ struct MediumCommandHUDView: View {
     }
 }
 
-// MARK: - Widget Main Declaration
+// MARK: - Widget Bundle & Main Declaration
 @main
-struct FinanceWidget: Widget {
-    let kind: String = "FinanceWidget"
+struct FinanceWidgetBundle: WidgetBundle {
+    var body: some Widget {
+        FinanceQuickActionWidget()
+    }
+}
+
+struct FinanceQuickActionWidget: Widget {
+    let kind: String = "FinanceQuickActionWidget"
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in
             FinanceWidgetEntryView(entry: entry)
         }
-        .configurationDisplayName("Command HUD Quick Entry")
-        .description("Instant futuristic action deck for logging expenses and income.")
+        .configurationDisplayName("Quick Actions")
+        .description("Quick expense and income logging.")
         .supportedFamilies([.systemSmall, .systemMedium])
         #if compiler(>=5.9)
         .contentMarginsDisabled()
         #endif
     }
 }
+
+typealias FinanceTimelineProvider = Provider
+typealias FinanceWidget = FinanceQuickActionWidget
